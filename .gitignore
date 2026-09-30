@@ -35,3 +35,15 @@ out/
 
 ### VS Code ###
 .vscode/
+
+### macOS ###
+.DS_Store
+
+### Local secrets (never commit) ###
+.env
+.env.*
+*.local.properties
+application-local.properties
+
+### jqwik (local failure-replay database) ###
+.jqwik-database

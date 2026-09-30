@@ -1,7 +1,9 @@
 plugins {
 	id 'java'
+	id 'pmd'
 	id 'org.springframework.boot' version '4.1.1'
 	id 'io.spring.dependency-management' version '1.1.7'
+	id 'com.github.spotbugs' version '6.5.12'
 }
 
 group = 'com.iitm'
@@ -32,9 +34,34 @@ dependencies {
 	testImplementation 'org.springframework.boot:spring-boot-starter-thymeleaf-test'
 	testImplementation 'org.springframework.boot:spring-boot-starter-validation-test'
 	testImplementation 'org.springframework.boot:spring-boot-starter-webmvc-test'
+	// Same version the Spring Boot BOM resolves; pinned so it is visible here.
+	testImplementation 'org.assertj:assertj-core:3.27.7'
+	testImplementation 'net.jqwik:jqwik:1.10.1'
 	testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
 }
 
 tasks.named('test') {
 	useJUnitPlatform()
+}
+
+// Static analysis is report-only for now: findings show up in build/reports
+// but do not fail the build. Handle each finding explicitly; never suppress silently.
+pmd {
+	toolVersion = '7.28.0'
+	ruleSets = ['rulesets/java/quickstart.xml']
+	consoleOutput = true
+	ignoreFailures = true
+}
+
+spotbugs {
+	toolVersion = '4.10.4'
+	ignoreFailures = true
+}
+
+tasks.withType(com.github.spotbugs.snom.SpotBugsTask).configureEach {
+	reports {
+		html {
+			required = true
+		}
+	}
 }

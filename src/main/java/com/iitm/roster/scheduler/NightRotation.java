@@ -118,7 +118,8 @@ public final class NightRotation {
 		cycle.set(b, first);
 	}
 
-	private static boolean isLong(Leave leave) {
+	/** More than {@value #LONG_LEAVE_DAYS} days, counting both the first and the last day. */
+	static boolean isLong(Leave leave) {
 		return ChronoUnit.DAYS.between(leave.firstDay(), leave.lastDay()) + 1 > LONG_LEAVE_DAYS;
 	}
 

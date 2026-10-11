@@ -41,6 +41,9 @@ class WeeklyOffConstraintTest {
 		// October 2026: Thu 1 - Sun 4, three full weeks, then Mon 26 - Sat 31.
 		assertThat(WeeklyOffConstraint.countedWeeks(Roster.empty(OCTOBER)))
 				.extracting(week -> week.get(0).getDayOfMonth()).containsExactly(1, 5, 12, 19, 26);
+		// May 2026 starts on a Friday: a three-day week is left to April.
+		assertThat(WeeklyOffConstraint.countedWeeks(Roster.empty(YearMonth.of(2026, 5))).get(0).get(0))
+				.isEqualTo(LocalDate.of(2026, 5, 4));
 		// November 2026 starts on a Sunday: that one-day week belongs to October's last week.
 		assertThat(WeeklyOffConstraint.countedWeeks(Roster.empty(YearMonth.of(2026, 11))).get(0).get(0))
 				.isEqualTo(LocalDate.of(2026, 11, 2));

@@ -75,6 +75,14 @@ class NightRotationTest {
 	}
 
 	@Test
+	void longLeaveMeansMoreThanTenDaysCountingBothEnds() {
+		Staff doctor = doctors(1).get(0);
+
+		assertThat(NightRotation.isLong(leave(doctor, 1, 10))).isFalse();
+		assertThat(NightRotation.isLong(leave(doctor, 1, 11))).isTrue();
+	}
+
+	@Test
 	void longLeaveTakesTheDoctorOutAndPutsThemBackOnTheirReturnDay() {
 		List<Staff> doctors = doctors(4);
 		// D02 is away 3rd to 14th (12 days) and returns on the 15th.

@@ -40,8 +40,17 @@ domain                               (core, depends on nothing)
 at `http://localhost:8080/h2-console` (JDBC URL `jdbc:h2:mem:roster`, user `sa`, empty
 password). Use synthetic data only.
 
-Spring Security is on with its default configuration until the `security` module lands:
-every page needs a login, user `user`, with a random password printed in the startup log.
+Every request needs HTTP Basic auth; no session is kept. The `dev` profile has synthetic
+users `admin` (ADMIN), `reception` (RECEPTION), `staff1` and `staff2` (STAFF), all with
+the password in `ROSTER_DEV_PASSWORD`. If that is unset, a random password is generated
+and printed in the startup log.
+
+```bash
+ROSTER_DEV_PASSWORD=<pick-one> ./gradlew bootRun
+curl -u admin:<pick-one> http://localhost:8080/api/...
+```
+
+The H2 console is not yet exempted from the security config.
 
 ## Test and build
 

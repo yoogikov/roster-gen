@@ -4,6 +4,8 @@
  *
  * <p>Layer: application. Owner: Tushar (proposed).
  *
- * <p>May depend on: {@code scheduler}, {@code rules}, {@code repo}, {@code export}.
+ * <p>May depend on: {@code scheduler}, {@code rules}, {@code repo}, {@code export}, and
+ * the {@code constraints} and {@code domain} types they pass through (e.g. checking each
+ * {@code Constraint} on an edit).
  */
 package com.iitm.roster.service;

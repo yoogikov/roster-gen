@@ -8,7 +8,10 @@ import java.util.Objects;
 /** Either every open slot was filled, or some could not be and we say which. */
 public sealed interface GenerationResult {
 
-	/** Every open slot filled with no HARD violation; {@code softPenalty} is the total SOFT penalty. */
+	/**
+	 * Every open slot filled without adding a HARD violation; {@code softPenalty} is the
+	 * total SOFT penalty of {@code roster}.
+	 */
 	record Ok(Roster roster, int softPenalty) implements GenerationResult {
 
 		public Ok {

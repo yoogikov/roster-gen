@@ -68,3 +68,13 @@ tasks.withType(com.github.spotbugs.snom.SpotBugsTask).configureEach {
 		}
 	}
 }
+
+// A doctor list in, a month's roster out, without starting the app:
+// ./gradlew generate --args="doctors.csv 2026-10 --holidays 2026-10-02,2026-10-20 --out roster.csv"
+tasks.register('generate', JavaExec) {
+	group = 'application'
+	description = 'Generates a month\'s roster from a doctor list CSV.'
+	classpath = sourceSets.main.runtimeClasspath
+	mainClass = 'com.iitm.roster.cli.GenerateRoster'
+	workingDir = rootProject.projectDir
+}

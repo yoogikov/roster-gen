@@ -81,8 +81,9 @@ schema in `prod`; it never changes it.
 
 ## Documentation
 
-- `docs/ai-log/`: one log per AI-assisted task (index in `docs/ai-log/README.md`)
-- `docs/disclosure/`: AI-use disclosure for each stage
+- `docs/ai-log/TEMPLATE.md`: the template for each AI-assisted task's log. The logs and the
+  per-stage AI-use disclosures are kept outside the repo for now and added at the final
+  submission. Commits with AI help carry a `Co-Authored-By` trailer.
 - `docs/GAPS.md`: honest list of what is missing or behind plan
 - `docs/weekly-log/`: weekly contribution paragraph per member
 

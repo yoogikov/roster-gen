@@ -38,6 +38,7 @@ dependencies {
 	testImplementation 'org.assertj:assertj-core:3.27.7'
 	testImplementation 'net.jqwik:jqwik:1.10.1'
 	// @SuppressFBWarnings for justified SpotBugs false positives; same version as the SpotBugs tool.
+	compileOnly 'com.github.spotbugs:spotbugs-annotations:4.10.4'
 	testCompileOnly 'com.github.spotbugs:spotbugs-annotations:4.10.4'
 	testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
 }

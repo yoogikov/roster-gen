@@ -90,7 +90,7 @@ public final class HospitalRosterGenerator {
 				perShift(input.weekdayPerShift()), perShift(input.weekendPerShift()));
 	}
 
-	/** The rules, all HARD except the weekly morning/afternoon block. */
+	/** The rules, all HARD except the weekly morning/afternoon block: SOFT, so a short shift pulls doctors from the other block. */
 	public List<Constraint> constraints(MonthInput input) {
 		return List.of(
 				new MinStaffingConstraint(staffing(input), Severity.HARD),

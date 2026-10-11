@@ -1,5 +1,6 @@
 /**
- * Export of a roster to PDF and CSV.
+ * Roster input and output: reading the doctor list (the app's only input) and exporting a
+ * roster to PDF and CSV.
  *
  * <p>Layer: planning and persistence. Owner: Yoogi (proposed).
  *

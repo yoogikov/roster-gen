@@ -17,3 +17,4 @@ Rules:
 |---|---|---|---|
 | 2026-09-30 | [Repository scaffolding](2026-09-30-repo-scaffolding.md) | Tushar | "Add project scaffolding, CI and docs structure" |
 | 2026-10-06 | [HTTP Basic security and dev users](2026-10-06-security-basic.md) | Tushar | "Add HTTP Basic security config with synthetic dev users" |
+| 2026-10-11 | [Persistence for staff, rosters, swaps and audit](2026-10-11-persistence.md) | Tushar | "Add JPA persistence for staff, rosters, swaps and audit" |

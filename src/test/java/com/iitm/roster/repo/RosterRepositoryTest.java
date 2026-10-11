@@ -10,8 +10,11 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import com.iitm.roster.domain.Assignment;
+import com.iitm.roster.domain.DayOff;
+import com.iitm.roster.domain.Post;
 import com.iitm.roster.domain.Roster;
 import com.iitm.roster.domain.RosterStatus;
+import com.iitm.roster.domain.ShiftSlot;
 import com.iitm.roster.domain.Staff;
 import com.iitm.roster.domain.StaffRole;
 import java.time.YearMonth;
@@ -109,6 +112,41 @@ class RosterRepositoryTest {
 
 		assertThat(rosters.findByMonth(december)).contains(dec);
 		assertThat(rosters.findByMonth(january)).contains(jan);
+	}
+
+	@Test
+	void postsAndWeeklyOffsSurviveSaveAndReload() {
+		Roster roster = new Roster(JULY, RosterStatus.DRAFT,
+				List.of(new Assignment(new ShiftSlot(JULY.atDay(6), MORNING), DOC_A, Post.WARD),
+						new Assignment(new ShiftSlot(JULY.atDay(6), MORNING), DOC_B, Post.CASUALTY),
+						on(JULY.atDay(6), MORNING, NURSE_C)),
+				List.of(new DayOff(DOC_A, JULY.atDay(4)), new DayOff(DOC_B, JULY.atDay(5))));
+
+		rosters.save(roster);
+		flushAndClear();
+
+		assertThat(rosters.findByMonth(JULY)).contains(roster);
+	}
+
+	@Test
+	void resavingWithoutWeeklyOffsRemovesThem() {
+		rosters.save(new Roster(JULY, RosterStatus.DRAFT, List.of(), List.of(new DayOff(DOC_A, JULY.atDay(4)))));
+		flushAndClear();
+
+		rosters.save(Roster.empty(JULY));
+		flushAndClear();
+
+		assertThat(rosters.findByMonth(JULY)).contains(Roster.empty(JULY));
+	}
+
+	@Test
+	void weeklyOffOfUnsavedStaffIsRejected() {
+		Staff stranger = new Staff("S99", "Test Unsaved", StaffRole.DOCTOR);
+		Roster roster = new Roster(JULY, RosterStatus.DRAFT, List.of(), List.of(new DayOff(stranger, JULY.atDay(4))));
+
+		assertThatThrownBy(() -> rosters.save(roster))
+				.isInstanceOf(IllegalArgumentException.class)
+				.hasMessageContaining("S99");
 	}
 
 	@Test

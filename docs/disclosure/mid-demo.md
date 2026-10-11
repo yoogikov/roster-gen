@@ -6,7 +6,7 @@ Stub. Fill in before submission from the task logs in `docs/ai-log/`.
 
 | Module | Owner | AI share | Verification |
 |---|---|---|---|
-| Build, CI, config, docs scaffolding | Tushar | High (AI-generated, human-reviewed) | `./gradlew build` green; smoke tests; see [log](../ai-log/2026-09-30-repo-scaffolding.md) |
+| Build, CI, config, docs scaffolding | Tushar | High (AI-generated; human review pending) | `./gradlew build` green; smoke tests; see [log](../ai-log/2026-09-30-repo-scaffolding.md) |
 | `domain` | Yoogi | | |
 | `constraints` | Yoogi | | |
 | `rules` | Yoogi | | |

@@ -12,6 +12,7 @@ import com.iitm.roster.domain.ShiftType;
 import com.iitm.roster.domain.Staff;
 import com.iitm.roster.domain.StaffRole;
 import com.iitm.roster.repo.AuditStore;
+import com.iitm.roster.repo.MonthInputStore;
 import com.iitm.roster.repo.RosterStore;
 import com.iitm.roster.repo.StaffStore;
 import java.time.Duration;
@@ -35,7 +36,8 @@ import org.springframework.transaction.annotation.Transactional;
  */
 @DataJpaTest
 @Transactional(propagation = Propagation.NOT_SUPPORTED)
-@Import({RosterService.class, ServiceConfig.class, RosterStore.class, StaffStore.class, AuditStore.class})
+@Import({RosterService.class, ServiceConfig.class, RosterStore.class, StaffStore.class, AuditStore.class,
+		MonthInputStore.class})
 class RosterServiceTransactionTest {
 
 	private static final ShiftType MORNING = new ShiftType("M", LocalTime.of(8, 0), Duration.ofHours(6));

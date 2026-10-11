@@ -57,7 +57,9 @@ The plan requires the interfaces to be hand-written, and they need `domain` type
 
 - **AI-written:** `SecurityConfig`, `DevUsersConfig`, both test classes, the
   `application-dev.properties` line, README and GAPS edits, this log, commit subject.
-- **Human-written:** <!-- TODO: Tushar --> `AuthorizationPolicy` and `Decision` will be.
+- **Human-written:** none of the files in this commit. Tushar wrote the prompt and picked
+  the task. `AuthorizationPolicy` and `Decision` are left for Tushar to write by hand
+  (GAPS row 9).
 - **Verification:** as listed above. Human line-by-line review still to do before the PR.
 - **Rejected:** hardcoding dev passwords in code or properties (conflicts with "no
   hardcoded credentials"); URL-pattern role rules (authorization belongs in

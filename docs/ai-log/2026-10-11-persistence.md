@@ -51,15 +51,16 @@ sides kept) because every entity maps a `domain` record.
   - Removing `@OrderColumn`: **survived**, even after adding
     `resavingInADifferentOrderKeepsTheNewOrder`. Hibernate deletes and re-inserts the
     whole collection on save, and H2 returns rows in insertion order. Kept the column
-    and the test; recorded as gap 18 (needs a Postgres run).
+    and the test; recorded as gap 22 (needs a Postgres run).
 - `./gradlew clean build`: 57 tests (20 new), 0 failures, 0 PMD, 0 SpotBugs.
-- Not checked: Postgres. `prod` uses `ddl-auto=validate` with no migration tool (gap 17).
+- Not checked: Postgres. `prod` uses `ddl-auto=validate` with no migration tool (gap 21).
 
 ## Outcome
 
 - **AI-written:** all of `repo` except the original `package-info.java` text, the four
-  test classes and `RepoFixtures`, GAPS rows 17–18, this log, commit subject.
-- **Human-written:** <!-- TODO: Tushar -->
+  test classes and `RepoFixtures`, GAPS rows 21–22 (first added as 17–18; renumbered when merging `feat/hospital-duty-rules`), this log, commit subject.
+- **Human-written:** none of the files in this commit. Tushar wrote the prompt; the agent
+  chose the task from the plan, and also chose to merge `feat/domain-model` first.
 - **Verification:** as listed above. Human line-by-line review still to do before the PR.
 - **Rejected:** public entities or Spring Data interfaces (would let JPA types leak to
   `service`); a separate shift-type table (`domain` has none); one `AssignmentEntity`

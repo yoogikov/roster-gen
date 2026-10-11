@@ -27,6 +27,7 @@ class SwapRequestEntity {
 	@AttributeOverride(name = "shiftCode", column = @Column(name = "offered_shift_code", nullable = false))
 	@AttributeOverride(name = "shiftStart", column = @Column(name = "offered_shift_start", nullable = false))
 	@AttributeOverride(name = "shiftLength", column = @Column(name = "offered_shift_length", nullable = false))
+	@AttributeOverride(name = "post", column = @Column(name = "offered_post", nullable = false))
 	@AssociationOverride(name = "staff", joinColumns = @JoinColumn(name = "offered_staff_id", nullable = false))
 	private AssignmentEmbeddable offered;
 
@@ -35,6 +36,7 @@ class SwapRequestEntity {
 	@AttributeOverride(name = "shiftCode", column = @Column(name = "wanted_shift_code", nullable = false))
 	@AttributeOverride(name = "shiftStart", column = @Column(name = "wanted_shift_start", nullable = false))
 	@AttributeOverride(name = "shiftLength", column = @Column(name = "wanted_shift_length", nullable = false))
+	@AttributeOverride(name = "post", column = @Column(name = "wanted_post", nullable = false))
 	@AssociationOverride(name = "staff", joinColumns = @JoinColumn(name = "wanted_staff_id", nullable = false))
 	private AssignmentEmbeddable wanted;
 

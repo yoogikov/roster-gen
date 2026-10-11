@@ -114,7 +114,9 @@ Central / Gradle Plugin Portal metadata on 2026-09-30, not taken from model memo
 - **AI-written:** everything in this commit: `build.gradle` changes, property files,
   `.gitignore` additions, `.github/workflows/build.yml`, all `package-info.java`,
   changes to `RosterApplicationTests`, `README.md`, all of `docs/`, and the commit subject and body.
-- **Human-written:** commit "why". <!-- TODO: human amends the commit message -->
+- **Human-written:** none of the files. Tushar wrote the prompt and chose the commit
+  boundary. The commit message was cut to its subject line on 30 Sep, so it has no "why"
+  section.
 - **Verification:** as listed above. Human review of every file still to do before push.
 - **Departures from the setup prompt:**
   - No plan-and-wait step, and one commit instead of suggested boundaries (user instruction).

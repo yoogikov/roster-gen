@@ -41,7 +41,7 @@ Same session as [the persistence log](2026-10-11-persistence.md). Plan task (Mon
 - **Design choice, checked against Yoogi's code:** comparing exact violations (as his
   generator does) rejects valid edits, because `MinStaffingConstraint`'s message includes
   the current count. A probe test in a throwaway worktree of `feat/greedy-generator`
-  confirmed the generator leaves all 62 slots unfilled for a minimum of 2 (GAPS row 21).
+  confirmed the generator leaves all 62 slots unfilled for a minimum of 2. Reported as GAPS row 21; Yoogi fixed it in `5badb8f` (the staffing message no longer includes the head count), so the row was removed on merge.
   The probe was not committed. `editThatImprovesAnExistingHardViolationIsAllowed`
   covers this case for `applyEdit`.
 - SpotBugs `EI_EXPOSE_REP2` on storing the injected `AuditStore`: false positive for a
@@ -58,9 +58,10 @@ Same session as [the persistence log](2026-10-11-persistence.md). Plan task (Mon
 ## Outcome
 
 - **AI-written:** all of `service` (besides the original `package-info.java` text), both
-  test classes and `FakeConstraints`, the `build.gradle` line, GAPS rows 19–21, this log,
+  test classes and `FakeConstraints`, the `build.gradle` line, GAPS rows 23–24 (first added as 19–20; renumbered on merge), this log,
   commit subject.
-- **Human-written:** <!-- TODO: Tushar -->
+- **Human-written:** none of the files in this commit. Tushar wrote the prompt; the agent
+  chose the task from the plan and made the design choices listed under "Rejected".
 - **Verification:** as listed above. Human line-by-line review still to do before the PR.
 - **Rejected:** letting `Roster`'s `IllegalArgumentException` signal double-booking
   (exception as control flow, and it would hide other argument errors); requiring zero

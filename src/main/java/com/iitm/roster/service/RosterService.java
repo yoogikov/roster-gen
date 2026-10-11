@@ -75,7 +75,7 @@ public class RosterService {
 				.orElseThrow(() -> new IllegalArgumentException("no roster for " + month));
 
 		Change change = plan(command, before);
-		if (change.added().isPresent() && doubleBooks(change.without(), change.added().get())) {
+		if (change.added().isPresent() && change.without().wouldDoubleBook(change.added().get())) {
 			return new EditResult.Rejected(List.of(doubleBooking(change.added().get())));
 		}
 		Roster after = change.added().map(change.without()::withAssignment).orElse(change.without());
@@ -99,19 +99,22 @@ public class RosterService {
 
 	private Change plan(EditCommand command, Roster before) {
 		ShiftSlot slot = command.slot();
-		String where = slot.shift().code() + " on " + slot.date();
 		return switch (command) {
-			case EditCommand.Assign assign -> new Change(before,
-					Optional.of(new Assignment(slot, staffById(assign.staffId()))),
-					"assigned " + assign.staffId() + " to " + where);
-			case EditCommand.Unassign unassign -> new Change(
-					remove(before, new Assignment(slot, staffById(unassign.staffId()))),
-					Optional.empty(),
-					"removed " + unassign.staffId() + " from " + where);
-			case EditCommand.Move move -> new Change(
-					remove(before, new Assignment(slot, staffById(move.fromStaffId()))),
-					Optional.of(new Assignment(slot, staffById(move.toStaffId()))),
-					"moved " + where + " from " + move.fromStaffId() + " to " + move.toStaffId());
+			case EditCommand.Assign assign -> {
+				Assignment added = new Assignment(slot, staffById(assign.staffId()), assign.post());
+				yield new Change(before, Optional.of(added), "assigned " + assign.staffId() + " to " + describe(added));
+			}
+			case EditCommand.Unassign unassign -> {
+				Assignment removed = existing(before, slot, staffById(unassign.staffId()));
+				yield new Change(before.withoutAssignment(removed), Optional.empty(),
+						"removed " + unassign.staffId() + " from " + describe(removed));
+			}
+			case EditCommand.Move move -> {
+				Assignment removed = existing(before, slot, staffById(move.fromStaffId()));
+				Assignment added = new Assignment(slot, staffById(move.toStaffId()), removed.post());
+				yield new Change(before.withoutAssignment(removed), Optional.of(added),
+						"moved " + describe(removed) + " from " + move.fromStaffId() + " to " + move.toStaffId());
+			}
 		};
 	}
 
@@ -119,16 +122,17 @@ public class RosterService {
 		return staff.findById(id).orElseThrow(() -> new IllegalArgumentException("unknown staff: " + id));
 	}
 
-	private static Roster remove(Roster roster, Assignment assignment) {
-		if (!roster.assignments().contains(assignment)) {
-			throw new IllegalArgumentException(assignment.staff().id() + " is not on " + assignment.slot());
-		}
-		return roster.withoutAssignment(assignment);
+	/** {@code member}'s assignment on {@code slot}, in whatever post. */
+	private static Assignment existing(Roster roster, ShiftSlot slot, Staff member) {
+		return roster.assignmentsOn(slot).stream()
+				.filter(a -> a.staff().equals(member))
+				.findFirst()
+				.orElseThrow(() -> new IllegalArgumentException(member.id() + " is not on " + slot));
 	}
 
-	private static boolean doubleBooks(Roster roster, Assignment assignment) {
-		return roster.assignmentsFor(assignment.staff()).stream()
-				.anyMatch(existing -> existing.slot().overlaps(assignment.slot()));
+	/** E.g. "I (WARD) on 2026-10-05". */
+	private static String describe(Assignment assignment) {
+		return assignment.slot().shift().code() + " (" + assignment.post() + ") on " + assignment.slot().date();
 	}
 
 	private static Violation doubleBooking(Assignment assignment) {

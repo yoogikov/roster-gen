@@ -22,15 +22,18 @@ public class RosterStore {
 
 	/**
 	 * Stores {@code roster}, replacing any roster already stored for its month. Every
-	 * assigned staff member must already be saved in {@link StaffStore}.
+	 * assigned staff member and everyone with a weekly off must already be saved in {@link StaffStore}.
 	 */
 	public void save(Roster roster) {
 		List<AssignmentEmbeddable> assignments = roster.assignments().stream()
 				.map(a -> new AssignmentEmbeddable(a, staffStore.require(a.staff())))
 				.toList();
+		List<DayOffEmbeddable> weeklyOffs = roster.weeklyOffs().stream()
+				.map(off -> new DayOffEmbeddable(off, staffStore.require(off.staff())))
+				.toList();
 		RosterEntity entity = rosters.findByMonth(roster.month().toString())
 				.orElseGet(() -> new RosterEntity(roster.month()));
-		entity.update(roster.status(), assignments);
+		entity.update(roster.status(), assignments, weeklyOffs);
 		rosters.save(entity);
 	}
 

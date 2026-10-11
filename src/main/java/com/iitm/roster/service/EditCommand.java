@@ -1,5 +1,6 @@
 package com.iitm.roster.service;
 
+import com.iitm.roster.domain.Post;
 import com.iitm.roster.domain.ShiftSlot;
 import java.util.Objects;
 
@@ -9,17 +10,23 @@ public sealed interface EditCommand {
 	/** The slot being changed; its date also picks the month's roster. */
 	ShiftSlot slot();
 
-	/** Put {@code staffId} on {@code slot}. */
-	record Assign(ShiftSlot slot, String staffId) implements EditCommand {
+	/** Put {@code staffId} on {@code slot} in {@code post}. */
+	record Assign(ShiftSlot slot, String staffId, Post post) implements EditCommand {
 
 		public Assign {
 			Objects.requireNonNull(slot, "slot");
 			requireId(staffId, "staffId");
+			Objects.requireNonNull(post, "post");
+		}
+
+		/** General duty. */
+		public Assign(ShiftSlot slot, String staffId) {
+			this(slot, staffId, Post.GENERAL);
 		}
 
 	}
 
-	/** Take {@code staffId} off {@code slot}. */
+	/** Take {@code staffId} off {@code slot}, whatever their post. */
 	record Unassign(ShiftSlot slot, String staffId) implements EditCommand {
 
 		public Unassign {
@@ -29,7 +36,7 @@ public sealed interface EditCommand {
 
 	}
 
-	/** Hand {@code slot} from {@code fromStaffId} to {@code toStaffId}. */
+	/** Hand {@code slot} from {@code fromStaffId} to {@code toStaffId}, keeping the post. */
 	record Move(ShiftSlot slot, String fromStaffId, String toStaffId) implements EditCommand {
 
 		public Move {

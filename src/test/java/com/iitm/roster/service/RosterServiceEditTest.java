@@ -9,6 +9,7 @@ import com.iitm.roster.constraints.Violation;
 import com.iitm.roster.domain.Actor;
 import com.iitm.roster.domain.Assignment;
 import com.iitm.roster.domain.AuditEvent;
+import com.iitm.roster.domain.Post;
 import com.iitm.roster.domain.Role;
 import com.iitm.roster.domain.Roster;
 import com.iitm.roster.domain.RosterStatus;
@@ -89,7 +90,7 @@ class RosterServiceEditTest {
 		assertThat(result).isEqualTo(new EditResult.Applied(expected, List.of()));
 		assertThat(rosters.findByMonth(JULY)).contains(expected);
 		assertThat(audit.findAll()).containsExactly(
-				new AuditEvent(NOW, "admin", JULY, "assigned S01 to M on 2026-07-10"));
+				new AuditEvent(NOW, "admin", JULY, "assigned S01 to M (GENERAL) on 2026-07-10"));
 	}
 
 	@Test
@@ -173,7 +174,7 @@ class RosterServiceEditTest {
 		service.applyEdit(new EditCommand.Unassign(slot(DAY, MORNING), "S01"), ADMIN);
 
 		assertThat(rosters.findByMonth(JULY).orElseThrow().assignments()).containsExactly(on(DAY, MORNING, DOC_B));
-		assertThat(audit.findAll()).extracting(AuditEvent::summary).containsExactly("removed S01 from M on 2026-07-10");
+		assertThat(audit.findAll()).extracting(AuditEvent::summary).containsExactly("removed S01 from M (GENERAL) on 2026-07-10");
 	}
 
 	@Test
@@ -184,7 +185,7 @@ class RosterServiceEditTest {
 
 		assertThat(rosters.findByMonth(JULY).orElseThrow().assignments()).containsExactly(on(DAY, MORNING, DOC_B));
 		assertThat(audit.findAll()).extracting(AuditEvent::summary)
-				.containsExactly("moved M on 2026-07-10 from S01 to S02");
+				.containsExactly("moved M (GENERAL) on 2026-07-10 from S01 to S02");
 	}
 
 	@Test
@@ -221,6 +222,39 @@ class RosterServiceEditTest {
 		assertThatThrownBy(() -> service.applyEdit(new EditCommand.Assign(slot(DAY, MORNING), "S01"), ADMIN))
 				.isInstanceOf(IllegalArgumentException.class)
 				.hasMessageContaining("no roster for 2026-07");
+	}
+
+	@Test
+	void assignInAPostStoresThePost() {
+		saveRoster();
+
+		service.applyEdit(new EditCommand.Assign(slot(DAY, MORNING), "S01", Post.WARD), ADMIN);
+
+		assertThat(rosters.findByMonth(JULY).orElseThrow().assignments())
+				.containsExactly(new Assignment(slot(DAY, MORNING), DOC_A, Post.WARD));
+		assertThat(audit.findAll()).extracting(AuditEvent::summary)
+				.containsExactly("assigned S01 to M (WARD) on 2026-07-10");
+	}
+
+	@Test
+	void moveKeepsThePost() {
+		saveRoster(new Assignment(slot(DAY, MORNING), DOC_A, Post.CASUALTY));
+
+		service.applyEdit(new EditCommand.Move(slot(DAY, MORNING), "S01", "S02"), ADMIN);
+
+		assertThat(rosters.findByMonth(JULY).orElseThrow().assignments())
+				.containsExactly(new Assignment(slot(DAY, MORNING), DOC_B, Post.CASUALTY));
+	}
+
+	@Test
+	void unassignFindsTheAssignmentWhateverItsPost() {
+		saveRoster(new Assignment(slot(DAY, MORNING), DOC_A, Post.WARD));
+
+		service.applyEdit(new EditCommand.Unassign(slot(DAY, MORNING), "S01"), ADMIN);
+
+		assertThat(rosters.findByMonth(JULY).orElseThrow().assignments()).isEmpty();
+		assertThat(audit.findAll()).extracting(AuditEvent::summary)
+				.containsExactly("removed S01 from M (WARD) on 2026-07-10");
 	}
 
 	@Test

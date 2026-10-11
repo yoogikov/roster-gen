@@ -19,8 +19,8 @@ import java.util.List;
 
 /**
  * One month's roster. The month is stored as text ({@code 2026-07}) because Hibernate has
- * no built-in mapping for {@link YearMonth}. {@code list_index} keeps the assignments in
- * the order the domain roster had them, so a reloaded roster is equal to the saved one.
+ * no built-in mapping for {@link YearMonth}. {@code list_index} keeps assignments and weekly
+ * offs in the order the domain roster had them, so a reloaded roster is equal to the saved one.
  */
 @Entity
 @Table(name = "roster")
@@ -42,6 +42,11 @@ class RosterEntity {
 	@OrderColumn(name = "list_index")
 	private List<AssignmentEmbeddable> assignments = new ArrayList<>();
 
+	@ElementCollection
+	@CollectionTable(name = "roster_weekly_off", joinColumns = @JoinColumn(name = "roster_id"))
+	@OrderColumn(name = "list_index")
+	private List<DayOffEmbeddable> weeklyOffs = new ArrayList<>();
+
 	protected RosterEntity() {
 		// Required by JPA, which instantiates the class before setting fields; not for application code.
 	}
@@ -50,15 +55,18 @@ class RosterEntity {
 		this.month = month.toString();
 	}
 
-	void update(RosterStatus newStatus, List<AssignmentEmbeddable> newAssignments) {
+	void update(RosterStatus newStatus, List<AssignmentEmbeddable> newAssignments, List<DayOffEmbeddable> newWeeklyOffs) {
 		this.status = newStatus;
 		this.assignments.clear();
 		this.assignments.addAll(newAssignments);
+		this.weeklyOffs.clear();
+		this.weeklyOffs.addAll(newWeeklyOffs);
 	}
 
 	Roster toDomain() {
 		return new Roster(YearMonth.parse(month), status,
-				assignments.stream().map(AssignmentEmbeddable::toDomain).toList());
+				assignments.stream().map(AssignmentEmbeddable::toDomain).toList(),
+				weeklyOffs.stream().map(DayOffEmbeddable::toDomain).toList());
 	}
 
 }

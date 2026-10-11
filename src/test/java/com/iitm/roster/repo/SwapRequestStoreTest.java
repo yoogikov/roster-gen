@@ -7,7 +7,10 @@ import static com.iitm.roster.repo.RepoFixtures.NIGHT;
 import static com.iitm.roster.repo.RepoFixtures.on;
 import static org.assertj.core.api.Assertions.assertThat;
 
+import com.iitm.roster.domain.Assignment;
+import com.iitm.roster.domain.Post;
 import com.iitm.roster.domain.RequestState;
+import com.iitm.roster.domain.ShiftSlot;
 import com.iitm.roster.domain.SwapRequest;
 import java.time.Instant;
 import java.time.LocalDate;
@@ -73,6 +76,19 @@ class SwapRequestStoreTest {
 		flushAndClear();
 
 		assertThat(requests.findOpen()).containsExactly(pending, accepted);
+	}
+
+	@Test
+	void postsOfBothAssignmentsSurviveSaveAndReload() {
+		SwapRequest request = new SwapRequest("R1",
+				new Assignment(new ShiftSlot(DAY, MORNING), DOC_A, Post.WARD),
+				new Assignment(new ShiftSlot(DAY, NIGHT), DOC_B, Post.GENERAL),
+				RequestState.PENDING, T0);
+
+		requests.save(request);
+		flushAndClear();
+
+		assertThat(requests.findById("R1")).contains(request);
 	}
 
 	@Test

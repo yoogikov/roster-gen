@@ -15,3 +15,4 @@ than declaring it; keep this current.
 | 8 | Hosting for the final demo not decided. | | Decide by about 20 Oct. |
 | 9 | `AuthorizationPolicy` and `Decision` not written yet. They must be hand-written and depend on `domain` types (`Actor`, `Action`, `Roster`) that have not landed. Only authentication exists; no per-action authorization. | No role checks on actions yet. | Tushar writes them by hand once `feat/domain-model` merges. |
 | 10 | The `prod` profile has no user store; only `dev` has (synthetic, in-memory) users. | Prod falls back to Spring Boot's single generated user. | Users backed by `repo` with the persistence work. |
+| 11 | `domain` and the core interfaces landed on 11 Oct, 8 days after the plan's 3 Oct date. They blocked `repo`, `service`, `requests` and `AuthorizationPolicy`. | Tushar's persistence, edit and swap work could not start. | Merge `feat/domain-model` first so the blocked work can start. |

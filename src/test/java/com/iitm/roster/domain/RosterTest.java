@@ -85,6 +85,20 @@ class RosterTest {
 	}
 
 	@Test
+	void wouldDoubleBookMatchesWhatTheConstructorRejects() {
+		Roster roster = new Roster(JULY, RosterStatus.DRAFT, List.of(on(3, NIGHT, DOC_A)));
+
+		ShiftType late = new ShiftType("X", LocalTime.of(22, 0), Duration.ofHours(4));
+
+		assertThat(roster.wouldDoubleBook(on(3, NIGHT, DOC_A))).isTrue();
+		assertThat(roster.wouldDoubleBook(on(3, late, DOC_A))).isTrue();
+		// Evening ends 20:00 as the night starts, and the night ends 08:00 as the morning starts.
+		assertThat(roster.wouldDoubleBook(on(3, EVENING, DOC_A))).isFalse();
+		assertThat(roster.wouldDoubleBook(on(4, MORNING, DOC_A))).isFalse();
+		assertThat(roster.wouldDoubleBook(on(3, NIGHT, DOC_B))).isFalse();
+	}
+
+	@Test
 	void withoutAssignmentRemovesItAndRejectsOneThatIsNotThere() {
 		Roster roster = new Roster(JULY, RosterStatus.DRAFT, List.of(on(5, MORNING, DOC_A)));
 

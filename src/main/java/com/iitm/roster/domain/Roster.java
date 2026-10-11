@@ -45,6 +45,12 @@ public record Roster(YearMonth month, RosterStatus status, List<Assignment> assi
 		return assignments.stream().filter(a -> a.slot().equals(slot)).toList();
 	}
 
+	/** True if adding {@code assignment} would put its staff member in two overlapping slots. */
+	public boolean wouldDoubleBook(Assignment assignment) {
+		return assignments.stream().anyMatch(a -> a.staff().equals(assignment.staff())
+				&& a.slot().overlaps(assignment.slot()));
+	}
+
 	/** A copy with {@code assignment} added; throws if it double-books someone. */
 	public Roster withAssignment(Assignment assignment) {
 		List<Assignment> changed = new ArrayList<>(assignments);

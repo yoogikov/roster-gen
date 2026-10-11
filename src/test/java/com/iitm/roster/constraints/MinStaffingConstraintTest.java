@@ -47,7 +47,7 @@ class MinStaffingConstraintTest {
 		assertThat(violations).hasSize(31);
 		assertThat(violations.get(0).date()).isEqualTo(LocalDate.of(2026, 7, 1));
 		assertThat(violations.get(30).date()).isEqualTo(LocalDate.of(2026, 7, 31));
-		assertThat(violations.get(0).message()).contains("needs 1 DOCTOR, has 0");
+		assertThat(violations.get(0).message()).contains("needs at least 1 DOCTOR");
 	}
 
 	@Test

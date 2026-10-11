@@ -7,24 +7,36 @@ import java.util.List;
 import java.util.Objects;
 
 /**
- * The roster for one month: which staff work which slots. Immutable; the {@code with...}
- * methods return a new roster.
+ * The roster for one month: which staff work which slots, and who has which weekly off.
+ * Immutable; the {@code with...} methods return a new roster.
  *
- * <p>Every slot starts inside {@code month} (a night shift on the last day may end in the
- * next month), and nobody is assigned two slots that overlap in time.
+ * <p>Every slot and weekly off is inside {@code month} (a night shift on the last day may
+ * end in the next month), and nobody is assigned two slots that overlap in time. Whether a
+ * weekly off clashes with a shift is checked by a constraint, not here.
  */
-public record Roster(YearMonth month, RosterStatus status, List<Assignment> assignments) {
+public record Roster(YearMonth month, RosterStatus status, List<Assignment> assignments, List<DayOff> weeklyOffs) {
 
 	public Roster {
 		Objects.requireNonNull(month, "month");
 		Objects.requireNonNull(status, "status");
 		assignments = List.copyOf(assignments);
+		weeklyOffs = List.copyOf(weeklyOffs);
 		for (Assignment assignment : assignments) {
 			if (!YearMonth.from(assignment.slot().date()).equals(month)) {
 				throw new IllegalArgumentException("slot " + assignment.slot().date() + " is outside " + month);
 			}
 		}
+		for (DayOff off : weeklyOffs) {
+			if (!YearMonth.from(off.date()).equals(month)) {
+				throw new IllegalArgumentException("weekly off " + off.date() + " is outside " + month);
+			}
+		}
 		rejectDoubleBooking(assignments);
+	}
+
+	/** A roster with no weekly offs recorded. */
+	public Roster(YearMonth month, RosterStatus status, List<Assignment> assignments) {
+		this(month, status, assignments, List.of());
 	}
 
 	/** An empty draft roster for {@code month}. */
@@ -55,7 +67,7 @@ public record Roster(YearMonth month, RosterStatus status, List<Assignment> assi
 	public Roster withAssignment(Assignment assignment) {
 		List<Assignment> changed = new ArrayList<>(assignments);
 		changed.add(assignment);
-		return new Roster(month, status, changed);
+		return new Roster(month, status, changed, weeklyOffs);
 	}
 
 	/** A copy without {@code assignment}; throws if it is not in this roster. */
@@ -64,11 +76,23 @@ public record Roster(YearMonth month, RosterStatus status, List<Assignment> assi
 		if (!changed.remove(assignment)) {
 			throw new IllegalArgumentException("not in roster: " + assignment);
 		}
-		return new Roster(month, status, changed);
+		return new Roster(month, status, changed, weeklyOffs);
 	}
 
 	public Roster withStatus(RosterStatus newStatus) {
-		return new Roster(month, newStatus, assignments);
+		return new Roster(month, newStatus, assignments, weeklyOffs);
+	}
+
+	/** A copy with {@code offs} added to the weekly offs. */
+	public Roster withWeeklyOffs(List<DayOff> offs) {
+		List<DayOff> changed = new ArrayList<>(weeklyOffs);
+		changed.addAll(offs);
+		return new Roster(month, status, assignments, changed);
+	}
+
+	/** True if {@code staff} has a weekly off on {@code date}. */
+	public boolean hasWeeklyOff(Staff staff, LocalDate date) {
+		return weeklyOffs.contains(new DayOff(staff, date));
 	}
 
 	private static void rejectDoubleBooking(List<Assignment> assignments) {

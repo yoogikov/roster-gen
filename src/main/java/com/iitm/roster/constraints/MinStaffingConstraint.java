@@ -10,18 +10,27 @@ import java.util.Objects;
 
 /**
  * Every shift on every day of the month has at least the required number of doctors and
- * nurses. Per-date overrides (Saarang, holidays) come later from {@code rules}.
+ * nurses, as set by a {@link StaffingPlan} (which can differ on weekends and holidays).
+ *
+ * <p>The message deliberately leaves out how many people are there now: the generator
+ * treats a violation that stays the same while a shift fills up as "not new", and a count
+ * in the message would change with every person added.
  */
 public final class MinStaffingConstraint implements Constraint {
 
 	public static final String ID = "min-staffing";
 
-	private final List<StaffingRequirement> requirements;
+	private final StaffingPlan plan;
 	private final Severity severity;
 
-	public MinStaffingConstraint(List<StaffingRequirement> requirements, Severity severity) {
-		this.requirements = List.copyOf(requirements);
+	public MinStaffingConstraint(StaffingPlan plan, Severity severity) {
+		this.plan = Objects.requireNonNull(plan, "plan");
 		this.severity = Objects.requireNonNull(severity, "severity");
+	}
+
+	/** The same requirements every day. */
+	public MinStaffingConstraint(List<StaffingRequirement> requirements, Severity severity) {
+		this(StaffingPlan.constant(requirements), severity);
 	}
 
 	@Override
@@ -38,7 +47,7 @@ public final class MinStaffingConstraint implements Constraint {
 	public List<Violation> check(Roster roster) {
 		List<Violation> violations = new ArrayList<>();
 		for (LocalDate day : roster.days()) {
-			for (StaffingRequirement requirement : requirements) {
+			for (StaffingRequirement requirement : plan.on(day)) {
 				ShiftSlot slot = new ShiftSlot(day, requirement.shift());
 				long present = roster.assignmentsOn(slot).stream()
 						.map(Assignment::staff)
@@ -46,8 +55,8 @@ public final class MinStaffingConstraint implements Constraint {
 						.count();
 				if (present < requirement.minimum()) {
 					violations.add(new Violation(ID, severity, day,
-							String.format("%s shift needs %d %s, has %d",
-									requirement.shift().code(), requirement.minimum(), requirement.role(), present)));
+							String.format("%s shift needs at least %d %s",
+									requirement.shift().code(), requirement.minimum(), requirement.role())));
 				}
 			}
 		}

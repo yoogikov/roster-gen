@@ -72,7 +72,7 @@ public final class GreedyRosterGenerator implements RosterGenerator {
 		int bestPenalty = 0;
 		int bestLoad = 0;
 		for (Staff person : candidates(open, roster, staff, hard)) {
-			Roster tried = roster.withAssignment(new Assignment(open.slot(), person));
+			Roster tried = roster.withAssignment(new Assignment(open.slot(), person, open.post()));
 			int penalty = totalPenalty(tried, soft);
 			int load = roster.assignmentsFor(person).size();
 			if (best == null || penalty < bestPenalty || penalty == bestPenalty && load < bestLoad) {
@@ -89,7 +89,7 @@ public final class GreedyRosterGenerator implements RosterGenerator {
 		Set<Violation> hardBefore = violations(roster, hard);
 		List<Staff> result = new ArrayList<>();
 		for (Staff person : sortedById(staff)) {
-			Assignment assignment = new Assignment(open.slot(), person);
+			Assignment assignment = new Assignment(open.slot(), person, open.post());
 			if (person.role() != open.role() || roster.wouldDoubleBook(assignment)) {
 				continue;
 			}

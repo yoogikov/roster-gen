@@ -20,3 +20,4 @@ Rules:
 | 2026-10-11 | [Persistence for staff, rosters, swaps and audit](2026-10-11-persistence.md) | Tushar | "Add JPA persistence for staff, rosters, swaps and audit" |
 | 2026-10-11 | [RosterService.applyEdit with audit](2026-10-11-roster-service.md) | Tushar | "Add RosterService.applyEdit with constraint checks and audit" |
 | 2026-10-11 | [Store posts, weekly offs and month input; generate a month](2026-10-11-hospital-rules-integration.md) | Tushar | "Generate and edit rosters under the hospital rules" |
+| 2026-10-11 | [AuthorizationPolicy, Decision and Action](2026-10-11-authorization-policy.md) | Tushar | "Add AuthorizationPolicy with Allow, Deny and RequiresApproval" |

@@ -29,6 +29,8 @@ import org.springframework.stereotype.Component;
  *   <tr><td>propose a swap (published, not past)</td><td>yes</td><td>yes</td><td>own shift only</td></tr>
  *   <tr><td>accept a swap</td><td>no</td><td>no</td><td>only the person asked</td></tr>
  *   <tr><td>approve or reject a swap (not past)</td><td>yes</td><td>no</td><td>no</td></tr>
+ *   <tr><td>propose leave</td><td>yes</td><td>yes</td><td>own leave only, not a past start</td></tr>
+ *   <tr><td>approve or reject a leave or a stored edit</td><td>yes</td><td>no</td><td>no</td></tr>
  * </table>
  */
 @Component
@@ -58,6 +60,8 @@ public final class HospitalAuthorizationPolicy implements AuthorizationPolicy {
 					? ALLOW
 					: new Decision.Deny("only the person asked can accept a swap");
 			case Action.DecideSwap(SwapRequest request) -> decide(actor, request);
+			case Action.ProposeLeave leave -> proposeLeave(actor, leave);
+			case Action.DecideRequest() -> adminOnly(actor, "only an admin can approve or reject a request");
 		};
 	}
 
@@ -108,6 +112,16 @@ public final class HospitalAuthorizationPolicy implements AuthorizationPolicy {
 		}
 		if (isPast(request.offered().slot().date()) || isPast(request.wanted().slot().date())) {
 			return new Decision.Deny("a past shift cannot be swapped");
+		}
+		return ALLOW;
+	}
+
+	private Decision proposeLeave(Actor actor, Action.ProposeLeave leave) {
+		if (isPast(leave.firstDay()) && actor.role() != Role.ADMIN) {
+			return new Decision.Deny("only an admin can request leave that has already started");
+		}
+		if (actor.role() == Role.STAFF && !isStaff(actor, leave.staffId())) {
+			return new Decision.Deny("staff can only request their own leave");
 		}
 		return ALLOW;
 	}

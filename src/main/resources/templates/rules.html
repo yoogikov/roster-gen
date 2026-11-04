@@ -1,0 +1,28 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+	<meta charset="utf-8"/>
+	<title>Rules</title>
+	<style>body { font-family: sans-serif; margin: 1.5rem; } nav a { margin-right: 1rem; } .notice { background: #fff6d8; padding: 0.5rem; }</style>
+</head>
+<body>
+<nav th:replace="~{nav :: nav}"></nav>
+<h1>Rule editor</h1>
+<p class="notice" th:if="${notice}" th:text="${notice}"></p>
+<p>Pick a template. Weekday staffing changes the numbers the next edit is checked against. The other rules are the hospital's fixed ones.</p>
+<form method="post" action="/rules">
+	<label>Month <input name="month" th:value="${month}" required="required" placeholder="2026-11"/></label>
+	<label>Template
+		<select name="templateId">
+			<option th:each="template : ${templates}" th:value="${template.id}" th:text="${template.description}">rule</option>
+		</select>
+	</label>
+	<label>Weekday <input name="weekday" value="4"/></label>
+	<label>Weekend <input name="weekend" value="2"/></label>
+	<button type="submit">Save</button>
+</form>
+<ul th:if="${saved != null}">
+	<li th:each="rule : ${saved}" th:text="${rule.templateId} + ' ' + ${rule.params}">saved</li>
+</ul>
+</body>
+</html>

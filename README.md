@@ -72,17 +72,24 @@ CI (`.github/workflows/build.yml`) runs `./gradlew build` on every push and pull
 
 ## Run (prod profile)
 
-Credentials are read only from environment variables:
+Hosting is not arranged: there is no IITM CC account and no consent for a free-tier
+host. Until there is one, run Postgres on the machine that will serve the app:
 
 ```bash
-export ROSTER_DB_URL=jdbc:postgresql://<host>:5432/<db>
-export ROSTER_DB_USER=<user>
-export ROSTER_DB_PASSWORD=<password>
+docker compose up -d
+export ROSTER_DB_URL=jdbc:postgresql://localhost:5432/roster
+export ROSTER_DB_USER=roster
+export ROSTER_DB_PASSWORD=roster
 SPRING_PROFILES_ACTIVE=prod java -jar build/libs/roster-0.0.1-SNAPSHOT.jar
 ```
 
 If any variable is missing the app refuses to start. Hibernate only validates the
-schema in `prod`; it never changes it.
+schema in `prod`; it never changes it, and nothing creates the tables yet, so the
+first start on an empty database fails validation.
+
+The pages are the roster sheet (`/rosters/2026-11`), the audit log (`/audit`), the
+request inbox (`/inbox`), the rule editor (`/rules`) and leave (`/leave`). The browser
+asks for the dev password. Staff see the sheet read-only. PDF export is not built.
 
 ## Documentation
 

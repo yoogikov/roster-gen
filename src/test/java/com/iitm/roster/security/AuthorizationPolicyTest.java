@@ -161,6 +161,22 @@ class AuthorizationPolicyTest {
 				.isEqualTo(new Decision.Deny("staff can only change their own shifts; ask for a swap instead"));
 	}
 
+	@Test
+	void staffMayRequestTheirOwnLeaveAndNotSomeoneElses() {
+		assertThat(policy.may(DOCTOR_1, new Action.ProposeLeave("D01", TODAY.plusDays(1)), PUBLISHED)).isEqualTo(ALLOW);
+		assertThat(policy.may(DOCTOR_1, new Action.ProposeLeave("D02", TODAY.plusDays(1)), PUBLISHED))
+				.isInstanceOf(Decision.Deny.class);
+		assertThat(policy.may(RECEPTION, new Action.ProposeLeave("D01", TODAY.plusDays(1)), PUBLISHED)).isEqualTo(ALLOW);
+	}
+
+	@Test
+	void onlyAdminMayApproveAStoredRequest() {
+		assertThat(policy.may(ADMIN, new Action.DecideRequest(), PUBLISHED)).isEqualTo(ALLOW);
+		assertThat(policy.may(DOCTOR_1, new Action.DecideRequest(), PUBLISHED)).isInstanceOf(Decision.Deny.class);
+		assertThat(policy.may(DOCTOR_1, new Action.ProposeLeave("D01", TODAY.minusDays(1)), PUBLISHED))
+				.isInstanceOf(Decision.Deny.class);
+	}
+
 	private static Action.EditShift edit(LocalDate date, String... staffIds) {
 		return new Action.EditShift(new ShiftSlot(date, StandardShifts.SHIFT_II), Set.of(staffIds));
 	}

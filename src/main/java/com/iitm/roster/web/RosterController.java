@@ -4,6 +4,8 @@ import com.iitm.roster.constraints.Violation;
 import com.iitm.roster.domain.Actor;
 import com.iitm.roster.domain.Roster;
 import com.iitm.roster.export.Format;
+import com.iitm.roster.requests.ChangeLifecycle;
+import com.iitm.roster.requests.ChangeResult;
 import com.iitm.roster.scheduler.GenerationResult;
 import com.iitm.roster.scheduler.MonthInput;
 import com.iitm.roster.security.Action;
@@ -41,15 +43,17 @@ public class RosterController {
 	private final RosterExportService exports;
 	private final AuthorizationPolicy policy;
 	private final CurrentActor current;
+	private final ChangeLifecycle changes;
 
 	public RosterController(RosterQuery query, RosterService edits, RosterGenerationService generation,
-			RosterExportService exports, AuthorizationPolicy policy, CurrentActor current) {
+			RosterExportService exports, AuthorizationPolicy policy, CurrentActor current, ChangeLifecycle changes) {
 		this.query = query;
 		this.edits = edits;
 		this.generation = generation;
 		this.exports = exports;
 		this.policy = policy;
 		this.current = current;
+		this.changes = changes;
 	}
 
 	@GetMapping("/api/rosters/{month}")
@@ -91,8 +95,11 @@ public class RosterController {
 				.orElseThrow(() -> new IllegalArgumentException("no roster for " + yearMonth));
 		Actor actor = current.get();
 		EditCommand command = body.toCommand();
-		ResponseEntity<Map<String, String>> denied = refusal(
-				policy.may(actor, new Action.EditShift(command.slot(), body.staffIds()), roster));
+		Decision decision = policy.may(actor, new Action.EditShift(command.slot(), body.staffIds()), roster);
+		if (decision instanceof Decision.RequiresApproval) {
+			return filed(changes.file(command, actor));
+		}
+		ResponseEntity<Map<String, String>> denied = refusal(decision);
 		if (denied != null) {
 			return denied;
 		}
@@ -141,6 +148,20 @@ public class RosterController {
 			return null;
 		}
 		return Decisions.forbidden(decision);
+	}
+
+	private static ResponseEntity<?> filed(ChangeResult result) {
+		return switch (result) {
+			case ChangeResult.Pending pending -> ResponseEntity.accepted().body(Map.of(
+					"id", pending.request().id(),
+					"state", pending.request().state().name(),
+					"decision", "RequiresApproval"));
+			case ChangeResult.NotAllowed notAllowed -> Decisions.forbidden(notAllowed.decision());
+			case ChangeResult.Approved approved -> ResponseEntity.ok(Map.of("id", approved.request().id(), "state", "APPROVED"));
+			case ChangeResult.Rejected rejected -> ResponseEntity.ok(Map.of("id", rejected.request().id(), "state", "REJECTED"));
+			case ChangeResult.EditRejected editRejected -> ResponseEntity.status(HttpStatus.UNPROCESSABLE_CONTENT)
+					.body(Map.of("state", "PENDING", "reason", editRejected.edit().violations().get(0).message()));
+		};
 	}
 
 	/** What generate did. {@code softPenalty} is set only when every slot was filled. */

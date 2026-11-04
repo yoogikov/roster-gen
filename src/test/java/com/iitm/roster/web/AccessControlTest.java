@@ -6,9 +6,16 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.httpBasic;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
+import com.iitm.roster.domain.ChangeRequest;
+import com.iitm.roster.domain.Post;
+import com.iitm.roster.domain.RequestState;
 import com.iitm.roster.domain.Roster;
+import com.iitm.roster.domain.RosterStatus;
+import com.iitm.roster.requests.ChangeLifecycle;
+import com.iitm.roster.requests.ChangeResult;
 import com.iitm.roster.security.CurrentActor;
 import com.iitm.roster.security.DevUsersConfig;
 import com.iitm.roster.security.HospitalAuthorizationPolicy;
@@ -20,6 +27,7 @@ import com.iitm.roster.service.RosterQuery;
 import com.iitm.roster.service.RosterService;
 import java.time.Clock;
 import java.time.Instant;
+import java.time.LocalDate;
 import java.time.YearMonth;
 import java.time.ZoneOffset;
 import java.util.List;
@@ -71,6 +79,9 @@ class AccessControlTest {
 	@MockitoBean
 	private RosterExportService exports;
 
+	@MockitoBean
+	private ChangeLifecycle changes;
+
 	@BeforeEach
 	void draftRoster() {
 		Roster draft = Roster.empty(JULY);
@@ -85,6 +96,23 @@ class AccessControlTest {
 				.contentType(MediaType.APPLICATION_JSON)
 				.content(EDIT))
 				.andExpect(status().isForbidden());
+
+		verify(edits, never()).applyEdit(any(), any());
+	}
+
+	@Test
+	void staffEditOfTheirOwnPublishedShiftIsStoredForApproval() throws Exception {
+		when(query.find(JULY)).thenReturn(Optional.of(Roster.empty(JULY).withStatus(RosterStatus.PUBLISHED)));
+		ChangeRequest pending = new ChangeRequest("c1", JULY, "assign", LocalDate.of(2026, 7, 20), "I", "D01", null, null,
+				Post.GENERAL, RequestState.PENDING, Instant.parse("2026-07-01T04:30:00Z"));
+		when(changes.file(any(), any())).thenReturn(new ChangeResult.Pending(pending));
+
+		mockMvc.perform(post("/api/rosters/2026-07/edits")
+				.with(httpBasic("staff1", PASSWORD))
+				.contentType(MediaType.APPLICATION_JSON)
+				.content(EDIT))
+				.andExpect(status().isAccepted())
+				.andExpect(jsonPath("$.state").value("PENDING"));
 
 		verify(edits, never()).applyEdit(any(), any());
 	}

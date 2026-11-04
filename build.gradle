@@ -37,6 +37,8 @@ dependencies {
 	// Same version the Spring Boot BOM resolves; pinned so it is visible here.
 	testImplementation 'org.assertj:assertj-core:3.27.7'
 	testImplementation 'net.jqwik:jqwik:1.10.1'
+	// Real Postgres for the prod-profile test. It downloads a server binary for this OS.
+	testImplementation 'io.zonky.test:embedded-postgres:2.0.7'
 	// @SuppressFBWarnings for justified SpotBugs false positives; same version as the SpotBugs tool.
 	compileOnly 'com.github.spotbugs:spotbugs-annotations:4.10.4'
 	testCompileOnly 'com.github.spotbugs:spotbugs-annotations:4.10.4'

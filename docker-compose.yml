@@ -1,0 +1,9 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: roster
+      POSTGRES_PASSWORD: roster
+      POSTGRES_DB: roster
+    ports:
+      - "5432:5432"

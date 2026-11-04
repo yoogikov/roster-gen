@@ -3,6 +3,7 @@ package com.iitm.roster.security;
 import com.iitm.roster.domain.Assignment;
 import com.iitm.roster.domain.ShiftSlot;
 import com.iitm.roster.domain.SwapRequest;
+import java.time.LocalDate;
 import java.util.Objects;
 import java.util.Set;
 
@@ -61,6 +62,22 @@ public sealed interface Action {
 			Objects.requireNonNull(request, "request");
 		}
 
+	}
+
+	/** Ask for leave covering {@code firstDay} (and the days the request names). */
+	record ProposeLeave(String staffId, LocalDate firstDay) implements Action {
+
+		public ProposeLeave {
+			if (staffId == null || staffId.isBlank()) {
+				throw new IllegalArgumentException("staffId must not be blank");
+			}
+			Objects.requireNonNull(firstDay, "firstDay");
+		}
+
+	}
+
+	/** Approve or reject a leave request or an edit that was stored for approval. */
+	record DecideRequest() implements Action {
 	}
 
 }

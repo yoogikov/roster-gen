@@ -1,0 +1,24 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+	<meta charset="utf-8"/>
+	<title>Audit</title>
+	<style>body { font-family: sans-serif; margin: 1.5rem; } nav a { margin-right: 1rem; } td, th { border: 1px solid #ccc; padding: 0.3rem; }</style>
+</head>
+<body>
+<nav th:replace="~{nav :: nav}"></nav>
+<h1>Audit log</h1>
+<table>
+	<thead><tr><th>When</th><th>Who</th><th>Month</th><th>What</th></tr></thead>
+	<tbody>
+	<tr th:each="event : ${events}">
+		<td th:text="${event.at}">when</td>
+		<td th:text="${event.actor}">who</td>
+		<td th:text="${event.month}">month</td>
+		<td th:text="${event.summary}">what</td>
+	</tr>
+	</tbody>
+</table>
+<p th:if="${#lists.isEmpty(events)}">No audit events yet.</p>
+</body>
+</html>

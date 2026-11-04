@@ -5,15 +5,15 @@ import static org.assertj.core.api.Assertions.assertThat;
 import java.util.List;
 import org.junit.jupiter.api.Test;
 import org.springframework.security.core.GrantedAuthority;
+import org.springframework.security.core.userdetails.UserDetailsService;
 import org.springframework.security.crypto.factory.PasswordEncoderFactories;
 import org.springframework.security.crypto.password.PasswordEncoder;
-import org.springframework.security.provisioning.InMemoryUserDetailsManager;
 
 class DevUsersConfigTest {
 
 	private final PasswordEncoder encoder = PasswordEncoderFactories.createDelegatingPasswordEncoder();
 
-	private final InMemoryUserDetailsManager users = new DevUsersConfig().devUsers("pw", encoder);
+	private final UserDetailsService users = new DevUsersConfig().devUsers("pw", encoder);
 
 	@Test
 	void eachDevUserHasExactlyItsRole() {
@@ -33,6 +33,13 @@ class DevUsersConfigTest {
 	@Test
 	void configuredPasswordIsUsedAsGiven() {
 		assertThat(DevUsersConfig.resolvePassword("secret")).isEqualTo("secret");
+	}
+
+	@Test
+	void staffLoginsKeepTheirDoctorId() {
+		assertThat(((RosterUser) users.loadUserByUsername("staff1")).staffId()).contains("D01");
+		assertThat(((RosterUser) users.loadUserByUsername("staff2")).staffId()).contains("D06");
+		assertThat(((RosterUser) users.loadUserByUsername("admin")).staffId()).isEmpty();
 	}
 
 	@Test

@@ -67,6 +67,12 @@ public class SwapLifecycle {
 		this.clock = clock;
 	}
 
+	/** The stored request. Throws if the id is unknown. */
+	@Transactional(readOnly = true)
+	public SwapRequest get(String id) {
+		return require(id);
+	}
+
 	/**
 	 * Opens a {@code PENDING} request to exchange {@code offered} for {@code wanted}.
 	 *

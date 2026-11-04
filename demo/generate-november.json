@@ -1,0 +1,21 @@
+{
+  "month": "2026-11",
+  "doctors": [
+    {"id": "D01", "name": "Test Doctor 1", "role": "DOCTOR"},
+    {"id": "D02", "name": "Test Doctor 2", "role": "DOCTOR"},
+    {"id": "D03", "name": "Test Doctor 3", "role": "DOCTOR"},
+    {"id": "D04", "name": "Test Doctor 4", "role": "DOCTOR"},
+    {"id": "D05", "name": "Test Doctor 5", "role": "DOCTOR"},
+    {"id": "D06", "name": "Test Doctor 6", "role": "DOCTOR"},
+    {"id": "D07", "name": "Test Doctor 7", "role": "DOCTOR"},
+    {"id": "D08", "name": "Test Doctor 8", "role": "DOCTOR"},
+    {"id": "D09", "name": "Test Doctor 9", "role": "DOCTOR"},
+    {"id": "D10", "name": "Test Doctor 10", "role": "DOCTOR"},
+    {"id": "D11", "name": "Test Doctor 11", "role": "DOCTOR"}
+  ],
+  "firstOnNights": {"id": "D01", "name": "Test Doctor 1", "role": "DOCTOR"},
+  "leaves": [],
+  "calendar": {"holidays": []},
+  "weekdayPerShift": 4,
+  "weekendPerShift": 2
+}

@@ -27,6 +27,14 @@ class SecurityConfigTest {
 	// No controllers exist yet, so an authenticated request reaches Spring MVC and gets 404.
 
 	@Test
+	void sameUserCanAuthenticateTwice() throws Exception {
+		mockMvc.perform(get("/api/ping").with(httpBasic("admin", PASSWORD)))
+				.andExpect(status().isNotFound());
+		mockMvc.perform(get("/api/ping").with(httpBasic("admin", PASSWORD)))
+				.andExpect(status().isNotFound());
+	}
+
+	@Test
 	void adminWithCorrectPasswordIsAuthenticated() throws Exception {
 		mockMvc.perform(get("/api/ping").with(httpBasic("admin", PASSWORD)))
 				.andExpect(status().isNotFound());

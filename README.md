@@ -40,10 +40,15 @@ domain                               (core, depends on nothing)
 at `http://localhost:8080/h2-console` (JDBC URL `jdbc:h2:mem:roster`, user `sa`, empty
 password). Use synthetic data only.
 
-Every request needs HTTP Basic auth; no session is kept. The `dev` profile has synthetic
-users `admin` (ADMIN), `reception` (RECEPTION), `staff1` and `staff2` (STAFF), all with
+Every request needs HTTP Basic auth; no session is kept, and CSRF is off because there is
+no session cookie. The `dev` profile has synthetic users `admin` (ADMIN), `reception`
+(RECEPTION), `staff1` (STAFF, doctor `D01`) and `staff2` (STAFF, doctor `D06`), all with
 the password in `ROSTER_DEV_PASSWORD`. If that is unset, a random password is generated
 and printed in the startup log.
+
+`demo/mid-demo.sh` drives the JSON API: generate a month, read it, export CSV, reject a
+double-booking, accept one edit, publish, swap, lapse, and show a staff edit refused.
+There is no import endpoint.
 
 ```bash
 ROSTER_DEV_PASSWORD=<pick-one> ./gradlew bootRun

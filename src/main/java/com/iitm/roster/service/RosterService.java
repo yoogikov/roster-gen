@@ -7,6 +7,7 @@ import com.iitm.roster.domain.Actor;
 import com.iitm.roster.domain.Assignment;
 import com.iitm.roster.domain.AuditEvent;
 import com.iitm.roster.domain.Roster;
+import com.iitm.roster.domain.RosterStatus;
 import com.iitm.roster.domain.ShiftSlot;
 import com.iitm.roster.domain.Staff;
 import com.iitm.roster.repo.AuditStore;
@@ -134,6 +135,28 @@ public class RosterService {
 			audit.append(new AuditEvent(clock.instant(), actor.username(), month, summary));
 		}
 		return new EditResult.Applied(after, added(violationsBefore, violationsAfter, Severity.SOFT));
+	}
+
+	/**
+	 * Marks the month published and writes one audit event. The caller has already asked
+	 * {@code AuthorizationPolicy}.
+	 *
+	 * @throws IllegalArgumentException if the month has no roster
+	 * @throws IllegalStateException if it is already published
+	 */
+	@Transactional
+	public Roster publish(YearMonth month, Actor actor) {
+		Objects.requireNonNull(month, "month");
+		Objects.requireNonNull(actor, "actor");
+		Roster roster = rosters.findByMonth(month)
+				.orElseThrow(() -> new IllegalArgumentException("no roster for " + month));
+		if (roster.status() == RosterStatus.PUBLISHED) {
+			throw new IllegalStateException(month + " is already published");
+		}
+		Roster published = roster.withStatus(RosterStatus.PUBLISHED);
+		rosters.save(published);
+		audit.append(new AuditEvent(clock.instant(), actor.username(), month, "published " + month));
+		return published;
 	}
 
 	/** The roster with the removed assignment (if any) taken out, and the assignment to add (if any). */

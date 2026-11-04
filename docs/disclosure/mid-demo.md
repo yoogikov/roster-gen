@@ -14,7 +14,7 @@ Stub. Fill in before submission from the task logs in `docs/ai-log/`.
 | `export` | Yoogi | | |
 | `repo` | Tushar | | |
 | `service` | Tushar | | |
-| `requests` | Tushar | | |
+| `requests` | Tushar | High (AI-written) | `SwapLifecycleTest`; see [log](../ai-log/2026-11-04-swap-requests.md) |
 | `security` | Tushar | | |
 | `web` | Tushar | | |
 
@@ -27,6 +27,7 @@ are not: the plan said they would be, but Tushar asked the AI to write them
 
 - [2026-09-30 Repository scaffolding](../ai-log/2026-09-30-repo-scaffolding.md)
 - [2026-10-11 AuthorizationPolicy, Decision and Action](../ai-log/2026-10-11-authorization-policy.md)
+- [2026-11-04 Swap state machine](../ai-log/2026-11-04-swap-requests.md)
 
 ## Notable rejected suggestions
 

@@ -21,3 +21,4 @@ Rules:
 | 2026-10-11 | [RosterService.applyEdit with audit](2026-10-11-roster-service.md) | Tushar | "Add RosterService.applyEdit with constraint checks and audit" |
 | 2026-10-11 | [Store posts, weekly offs and month input; generate a month](2026-10-11-hospital-rules-integration.md) | Tushar | "Generate and edit rosters under the hospital rules" |
 | 2026-10-11 | [AuthorizationPolicy, Decision and Action](2026-10-11-authorization-policy.md) | Tushar | "Add AuthorizationPolicy with Allow, Deny and RequiresApproval" |
+| 2026-11-04 | [Swap state machine](2026-11-04-swap-requests.md) | Tushar | "Add swap state machine with lapse and night-ward moves" |

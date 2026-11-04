@@ -70,15 +70,56 @@ public class RosterService {
 	public EditResult applyEdit(EditCommand command, Actor actor) {
 		Objects.requireNonNull(command, "command");
 		Objects.requireNonNull(actor, "actor");
-		YearMonth month = YearMonth.from(command.slot().date());
+		return applyEdits(List.of(command), actor);
+	}
+
+	/**
+	 * Applies every command to one month, or none of them. A swap uses this so both
+	 * assignments (and a night's Shift I ward duty) move in one transaction: the hospital
+	 * rules are checked on the final roster only, and one audit event is written per command.
+	 *
+	 * <p>Removals happen first and additions afterwards. Shift I and Shift II overlap by the
+	 * handover, so exchanging them would look like a double-booking in the middle even though
+	 * each doctor ends up with only one of the two shifts.
+	 *
+	 * @throws IllegalArgumentException if {@code commands} is empty, the commands span two
+	 *     months, the month has no roster, a staff id is unknown, or the staff member to
+	 *     remove is not on the slot
+	 */
+	@Transactional
+	public EditResult applyEdits(List<EditCommand> commands, Actor actor) {
+		Objects.requireNonNull(commands, "commands");
+		Objects.requireNonNull(actor, "actor");
+		if (commands.isEmpty()) {
+			throw new IllegalArgumentException("nothing to apply");
+		}
+		List<EditCommand> batch = List.copyOf(commands);
+		YearMonth month = YearMonth.from(batch.get(0).slot().date());
+		for (EditCommand command : batch) {
+			if (!YearMonth.from(command.slot().date()).equals(month)) {
+				throw new IllegalArgumentException("edits must all fall in " + month);
+			}
+		}
 		Roster before = rosters.findByMonth(month)
 				.orElseThrow(() -> new IllegalArgumentException("no roster for " + month));
 
-		Change change = plan(command, before);
-		if (change.added().isPresent() && change.without().wouldDoubleBook(change.added().get())) {
-			return new EditResult.Rejected(List.of(doubleBooking(change.added().get())));
+		Roster stripped = before;
+		List<Assignment> toAdd = new ArrayList<>();
+		List<String> summaries = new ArrayList<>();
+		for (EditCommand command : batch) {
+			Change change = plan(command, stripped);
+			stripped = change.without();
+			change.added().ifPresent(toAdd::add);
+			summaries.add(change.summary());
 		}
-		Roster after = change.added().map(change.without()::withAssignment).orElse(change.without());
+
+		Roster after = stripped;
+		for (Assignment assignment : toAdd) {
+			if (after.wouldDoubleBook(assignment)) {
+				return new EditResult.Rejected(List.of(doubleBooking(assignment)));
+			}
+			after = after.withAssignment(assignment);
+		}
 
 		List<Constraint> active = constraints.constraintsFor(month);
 		List<Violation> violationsBefore = check(active, before);
@@ -89,7 +130,9 @@ public class RosterService {
 		}
 
 		rosters.save(after);
-		audit.append(new AuditEvent(clock.instant(), actor.username(), month, change.summary()));
+		for (String summary : summaries) {
+			audit.append(new AuditEvent(clock.instant(), actor.username(), month, summary));
+		}
 		return new EditResult.Applied(after, added(violationsBefore, violationsAfter, Severity.SOFT));
 	}
 

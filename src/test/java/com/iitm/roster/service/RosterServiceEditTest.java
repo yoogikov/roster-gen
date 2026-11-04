@@ -263,6 +263,33 @@ class RosterServiceEditTest {
 				.isInstanceOf(IllegalArgumentException.class);
 	}
 
+	@Test
+	void exchangingOverlappingShiftsIsSavedWithOneAuditEventEach() {
+		ShiftType afternoon = new ShiftType("P", LocalTime.of(13, 0), Duration.ofHours(5));
+		saveRoster(on(DAY, MORNING, DOC_A), new Assignment(slot(DAY, afternoon), DOC_B));
+
+		EditResult result = service.applyEdits(List.of(
+				new EditCommand.Move(slot(DAY, MORNING), "S01", "S02"),
+				new EditCommand.Move(slot(DAY, afternoon), "S02", "S01")), ADMIN);
+
+		assertThat(result).isInstanceOf(EditResult.Applied.class);
+		assertThat(rosters.findByMonth(JULY).orElseThrow().assignments()).containsExactlyInAnyOrder(
+				on(DAY, MORNING, DOC_B), new Assignment(slot(DAY, afternoon), DOC_A));
+		assertThat(audit.findAll()).hasSize(2);
+	}
+
+	@Test
+	void aBatchThatDoubleBooksSavesNothing() {
+		Roster start = saveRoster(on(DAY, NIGHT, DOC_A));
+
+		EditResult result = service.applyEdits(List.of(
+				new EditCommand.Assign(slot(DAY.plusDays(1), MORNING), "S02"),
+				new EditCommand.Assign(slot(DAY.plusDays(1), EARLY), "S01")), ADMIN);
+
+		assertThat(result).isInstanceOf(EditResult.Rejected.class);
+		assertNothingStoredBeyond(start);
+	}
+
 	private Roster saveRoster(Assignment... assignments) {
 		Roster roster = new Roster(JULY, RosterStatus.DRAFT, List.of(assignments));
 		rosters.save(roster);

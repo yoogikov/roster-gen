@@ -38,7 +38,9 @@ D11,Test Doctor 11</textarea></label>
 		<label>Holidays <input name="holidays" size="40" placeholder="2026-12-25, 2026-12-31"/></label>
 		<p>Holidays are staffed like weekends. Leave the box blank to keep the month's saved
 			holidays when generating again; type <code>none</code> to clear them.</p>
-		<label>First on nights <input name="firstOnNights" value="D01" required="required"/></label>
+		<label>First on nights <input name="firstOnNights" placeholder="blank: continue from last month"/></label>
+		<p>Leave First on nights blank to carry the night rotation on from last month's roster:
+			the doctor after last month's final night starts. Type a doctor id to choose yourself.</p>
 		<label>Weekday doctors per shift <input name="weekday" type="number" value="4" min="2"/></label>
 		<label>Weekend doctors per shift <input name="weekend" type="number" value="2" min="2"/></label>
 		<button type="submit">Generate</button>

@@ -82,7 +82,8 @@ public class PageController {
 	}
 
 	@PostMapping("/rosters/generate")
-	String generate(@RequestParam String month, @RequestParam String doctors, @RequestParam String firstOnNights,
+	String generate(@RequestParam String month, @RequestParam String doctors,
+			@RequestParam(defaultValue = "") String firstOnNights,
 			@RequestParam int weekday, @RequestParam int weekend, @RequestParam(defaultValue = "") String leave,
 			@RequestParam(defaultValue = "") String holidays, Model model) {
 		model.addAttribute("admin", admin());
@@ -92,16 +93,25 @@ public class PageController {
 		}
 		try {
 			List<Staff> rostered = parseDoctors(doctors);
-			Staff first = rostered.stream().filter(doctor -> doctor.id().equals(firstOnNights.trim())).findFirst()
-					.orElseThrow(() -> new IllegalArgumentException("first on nights is not in the doctor list"));
 			YearMonth yearMonth = YearMonth.parse(month);
+			String continued = "";
+			Staff first;
+			if (firstOnNights.isBlank()) {
+				first = generation.continueNights(yearMonth, rostered).orElseThrow(() -> new IllegalArgumentException(
+						"no roster for " + yearMonth.minusMonths(1)
+								+ " to continue the nights from; type who does the first night"));
+				continued = "; nights start with " + first.id() + ", continuing from " + yearMonth.minusMonths(1);
+			} else {
+				first = rostered.stream().filter(doctor -> doctor.id().equals(firstOnNights.trim())).findFirst()
+						.orElseThrow(() -> new IllegalArgumentException("first on nights is not in the doctor list"));
+			}
 			MonthInput input = new MonthInput(yearMonth, rostered, first, parseLeave(leave, rostered),
 					calendar(holidays, yearMonth), weekday, weekend);
 			GenerationResult result = generation.generate(input, current.get());
 			model.addAttribute("notice", switch (result) {
 				case GenerationResult.Ok ok -> "generated " + month + ", soft penalty " + ok.softPenalty();
 				case GenerationResult.Infeasible infeasible -> month + " left " + infeasible.unfilled().size() + " slots unfilled";
-			});
+			} + continued);
 		} catch (RuntimeException ex) {
 			model.addAttribute("notice", ex.getMessage());
 		}

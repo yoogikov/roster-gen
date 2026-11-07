@@ -1,15 +1,20 @@
 package com.iitm.roster.scheduler;
 
+import com.iitm.roster.domain.Assignment;
 import com.iitm.roster.domain.Leave;
+import com.iitm.roster.domain.Roster;
+import com.iitm.roster.domain.ShiftType;
 import com.iitm.roster.domain.Staff;
 import java.time.LocalDate;
 import java.time.YearMonth;
 import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Optional;
 
 /**
  * Plans who does nights, following the CMO's fixed rotation.
@@ -70,6 +75,30 @@ public final class NightRotation {
 			position = (position + 1) % cycle.size();
 		}
 		return nights;
+	}
+
+	/**
+	 * Who does the first night of the month after {@code previous}, so the rotation carries on:
+	 * the doctor after the latest night in {@code previous} done by someone in {@code order},
+	 * wrapping from the last doctor to the first. A doctor who has left (not in {@code order}) is
+	 * skipped, so the rotation continues after the latest night by someone who stayed. Doctors
+	 * are matched by id.
+	 *
+	 * @return empty if nobody in {@code order} did a night in {@code previous}
+	 */
+	public static Optional<Staff> firstAfter(Roster previous, ShiftType night, List<Staff> order) {
+		List<Assignment> latestFirst = previous.assignments().stream()
+				.filter(assignment -> assignment.slot().shift().equals(night))
+				.sorted(Comparator.comparing((Assignment assignment) -> assignment.slot().date()).reversed())
+				.toList();
+		for (Assignment last : latestFirst) {
+			for (int i = 0; i < order.size(); i++) {
+				if (order.get(i).id().equals(last.staff().id())) {
+					return Optional.of(order.get((i + 1) % order.size()));
+				}
+			}
+		}
+		return Optional.empty();
 	}
 
 	/** Removes everyone whose long leave covers {@code day}; returns the adjusted position. */

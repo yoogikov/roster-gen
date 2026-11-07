@@ -69,8 +69,9 @@ Pages:
 | `/rules` | Rule templates |
 | `/leave` | Leave request form |
 
-CSV download is on the sheet and at `GET /api/rosters/{month}/export?format=csv`.
-PDF export is not built (Yoogi's `PdfExporter`).
+CSV and PDF downloads are on the sheet and at
+`GET /api/rosters/{month}/export?format=csv` (or `format=pdf`). The PDF is A4 landscape,
+one row per day, with the same columns as the CSV and weekends shaded.
 
 `demo/mid-demo.sh` drives the JSON API: generate, read, export CSV, reject a
 double-booking, accept one edit, publish, swap, lapse, and show a staff edit of

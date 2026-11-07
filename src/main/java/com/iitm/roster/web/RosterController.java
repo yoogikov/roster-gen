@@ -136,9 +136,11 @@ public class RosterController {
 		}
 		Format parsed = Format.valueOf(format.toUpperCase(Locale.ROOT));
 		byte[] body = exports.export(yearMonth, parsed);
+		String extension = parsed.name().toLowerCase(Locale.ROOT);
+		MediaType type = parsed == Format.PDF ? MediaType.APPLICATION_PDF : MediaType.parseMediaType("text/csv");
 		return ResponseEntity.ok()
-				.header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=roster-" + yearMonth + ".csv")
-				.contentType(MediaType.parseMediaType("text/csv"))
+				.header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=roster-" + yearMonth + "." + extension)
+				.contentType(type)
 				.body(body);
 	}
 

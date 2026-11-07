@@ -5,7 +5,10 @@ import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.httpBasic;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.header;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
@@ -14,6 +17,7 @@ import com.iitm.roster.domain.Post;
 import com.iitm.roster.domain.RequestState;
 import com.iitm.roster.domain.Roster;
 import com.iitm.roster.domain.RosterStatus;
+import com.iitm.roster.export.Format;
 import com.iitm.roster.requests.ChangeLifecycle;
 import com.iitm.roster.requests.ChangeResult;
 import com.iitm.roster.security.CurrentActor;
@@ -25,6 +29,7 @@ import com.iitm.roster.service.RosterExportService;
 import com.iitm.roster.service.RosterGenerationService;
 import com.iitm.roster.service.RosterQuery;
 import com.iitm.roster.service.RosterService;
+import java.nio.charset.StandardCharsets;
 import java.time.Clock;
 import java.time.Instant;
 import java.time.LocalDate;
@@ -39,6 +44,7 @@ import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
 import org.springframework.boot.webmvc.test.autoconfigure.WebMvcTest;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Import;
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.context.TestPropertySource;
@@ -124,6 +130,32 @@ class AccessControlTest {
 				.contentType(MediaType.APPLICATION_JSON)
 				.content(EDIT))
 				.andExpect(status().isOk());
+	}
+
+	@Test
+	void thePdfExportIsServedAsAPdfFile() throws Exception {
+		when(exports.export(JULY, Format.PDF)).thenReturn("%PDF-1.7".getBytes(StandardCharsets.US_ASCII));
+
+		mockMvc.perform(get("/api/rosters/2026-07/export").param("format", "pdf").with(httpBasic("admin", PASSWORD)))
+				.andExpect(status().isOk())
+				.andExpect(content().contentType("application/pdf"))
+				.andExpect(header().string(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=roster-2026-07.pdf"));
+	}
+
+	@Test
+	void theCsvExportKeepsItsTypeAndName() throws Exception {
+		when(exports.export(JULY, Format.CSV)).thenReturn("date\n".getBytes(StandardCharsets.UTF_8));
+
+		mockMvc.perform(get("/api/rosters/2026-07/export").param("format", "csv").with(httpBasic("admin", PASSWORD)))
+				.andExpect(status().isOk())
+				.andExpect(content().contentType("text/csv"))
+				.andExpect(header().string(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=roster-2026-07.csv"));
+	}
+
+	@Test
+	void anUnknownExportFormatIsABadRequest() throws Exception {
+		mockMvc.perform(get("/api/rosters/2026-07/export").param("format", "xlsx").with(httpBasic("admin", PASSWORD)))
+				.andExpect(status().isBadRequest());
 	}
 
 	static class ClockConfig {

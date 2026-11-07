@@ -34,12 +34,13 @@ public final class PostDutyOffConstraint implements Constraint {
 	@Override
 	public List<Violation> check(Roster roster) {
 		List<Violation> violations = new ArrayList<>();
+		RosterIndex index = new RosterIndex(roster);
 		for (Assignment nightDuty : roster.assignments()) {
 			if (!nightDuty.slot().shift().equals(night)) {
 				continue;
 			}
 			LocalDate offDay = nightDuty.slot().date().plusDays(1);
-			for (Assignment other : roster.assignmentsFor(nightDuty.staff())) {
+			for (Assignment other : index.of(nightDuty.staff())) {
 				if (other.slot().date().equals(offDay)) {
 					violations.add(new Violation(ID, severity, offDay, String.format("%s is post-duty off but rostered for %s",
 							other.staff().name(), other.slot().shift().code())));

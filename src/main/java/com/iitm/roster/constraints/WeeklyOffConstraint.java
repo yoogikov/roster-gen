@@ -9,6 +9,7 @@ import com.iitm.roster.domain.ShiftType;
 import com.iitm.roster.domain.Staff;
 import java.time.LocalDate;
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Objects;
@@ -52,8 +53,10 @@ public final class WeeklyOffConstraint implements Constraint {
 	@Override
 	public List<Violation> check(Roster roster) {
 		List<Violation> violations = new ArrayList<>();
+		RosterIndex index = new RosterIndex(roster);
+		Set<DayOff> offs = new HashSet<>(roster.weeklyOffs());
 		for (DayOff off : roster.weeklyOffs()) {
-			for (Assignment assignment : roster.assignmentsFor(off.staff())) {
+			for (Assignment assignment : index.of(off.staff())) {
 				if (assignment.slot().date().equals(off.date())) {
 					violations.add(new Violation(ID, severity, off.date(),
 							off.staff().name() + " is rostered on their weekly off"));
@@ -66,7 +69,7 @@ public final class WeeklyOffConstraint implements Constraint {
 		}
 		for (List<LocalDate> week : countedWeeks(roster)) {
 			for (Staff staff : staffOn(roster)) {
-				boolean hasOff = week.stream().anyMatch(day -> roster.hasWeeklyOff(staff, day));
+				boolean hasOff = week.stream().anyMatch(day -> offs.contains(new DayOff(staff, day)));
 				if (!hasOff && !onLeaveAllOf(staff, week)) {
 					violations.add(new Violation(ID, severity, week.get(0),
 							staff.name() + " has no weekly off in the week of " + HospitalCalendar.weekStart(week.get(0))));

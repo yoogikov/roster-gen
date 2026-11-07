@@ -42,9 +42,10 @@ public final class NightIncludesMorningWardConstraint implements Constraint {
 	@Override
 	public List<Violation> check(Roster roster) {
 		List<Violation> violations = new ArrayList<>();
+		RosterIndex index = new RosterIndex(roster);
 		for (LocalDate day : roster.days()) {
-			List<Staff> nightDoctors = staffOn(roster, new ShiftSlot(day, night), null);
-			List<Staff> morningWard = staffOn(roster, new ShiftSlot(day, morning), Post.WARD);
+			List<Staff> nightDoctors = staffOn(index, new ShiftSlot(day, night), null);
+			List<Staff> morningWard = staffOn(index, new ShiftSlot(day, morning), Post.WARD);
 			for (Staff doctor : nightDoctors) {
 				if (!morningWard.contains(doctor)) {
 					violations.add(new Violation(ID, severity, day,
@@ -62,8 +63,8 @@ public final class NightIncludesMorningWardConstraint implements Constraint {
 	}
 
 	/** Staff on {@code slot}, only those in {@code post} if it is not null. */
-	private static List<Staff> staffOn(Roster roster, ShiftSlot slot, Post post) {
-		return roster.assignmentsOn(slot).stream()
+	private static List<Staff> staffOn(RosterIndex index, ShiftSlot slot, Post post) {
+		return index.on(slot).stream()
 				.filter(a -> post == null || a.post() == post)
 				.map(Assignment::staff)
 				.toList();

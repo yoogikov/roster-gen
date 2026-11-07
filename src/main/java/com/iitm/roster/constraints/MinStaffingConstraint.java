@@ -46,10 +46,11 @@ public final class MinStaffingConstraint implements Constraint {
 	@Override
 	public List<Violation> check(Roster roster) {
 		List<Violation> violations = new ArrayList<>();
+		RosterIndex index = new RosterIndex(roster);
 		for (LocalDate day : roster.days()) {
 			for (StaffingRequirement requirement : plan.on(day)) {
 				ShiftSlot slot = new ShiftSlot(day, requirement.shift());
-				long present = roster.assignmentsOn(slot).stream()
+				long present = index.on(slot).stream()
 						.map(Assignment::staff)
 						.filter(staff -> staff.role() == requirement.role())
 						.count();

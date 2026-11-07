@@ -38,9 +38,10 @@ public final class PostCoverageConstraint implements Constraint {
 	@Override
 	public List<Violation> check(Roster roster) {
 		List<Violation> violations = new ArrayList<>();
+		RosterIndex index = new RosterIndex(roster);
 		for (LocalDate day : roster.days()) {
 			for (ShiftType shift : shifts) {
-				List<Assignment> onShift = roster.assignmentsOn(new ShiftSlot(day, shift));
+				List<Assignment> onShift = index.on(new ShiftSlot(day, shift));
 				for (Post post : COVERED) {
 					long count = onShift.stream().filter(a -> a.post() == post).count();
 					if (count == 0) {

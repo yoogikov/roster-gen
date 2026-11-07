@@ -9,8 +9,10 @@ import com.iitm.roster.domain.ShiftSlot;
 import com.iitm.roster.domain.Staff;
 import java.util.ArrayList;
 import java.util.Comparator;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 
@@ -58,10 +60,19 @@ public final class GreedyRosterGenerator implements RosterGenerator {
 		return new GenerationResult.Infeasible(roster, unfilled);
 	}
 
+	/**
+	 * Open slots with the fewest candidates first, ties by start time. Each slot's candidates are
+	 * counted once before sorting: counting inside the comparator ran the full rule check on
+	 * every comparison, which was most of the generation time.
+	 */
 	private static List<OpenSlot> hardestFirst(GenerationRequest request, List<Constraint> hard) {
+		Map<OpenSlot, Integer> choices = new HashMap<>();
+		for (OpenSlot open : request.openSlots()) {
+			choices.put(open, candidates(open, request.start(), request.staff(), hard).size());
+		}
 		List<OpenSlot> ordered = new ArrayList<>(request.openSlots());
 		ordered.sort(Comparator
-				.comparingInt((OpenSlot open) -> candidates(open, request.start(), request.staff(), hard).size())
+				.<OpenSlot>comparingInt(choices::get)
 				.thenComparing(open -> open.slot().start()));
 		return ordered;
 	}

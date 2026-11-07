@@ -84,3 +84,9 @@ tasks.register('generate', JavaExec) {
 	mainClass = 'com.iitm.roster.cli.GenerateRoster'
 	workingDir = rootProject.projectDir
 }
+
+// Spring Boot's bootRun limits the JIT to its first tier for a faster start. Generating a month
+// then took about 67 s instead of about 7 s with java -jar, so turn that off.
+tasks.named('bootRun') {
+	optimizedLaunch = false
+}

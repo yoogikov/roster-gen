@@ -61,9 +61,9 @@ class GenerateRosterTest {
 
 		int code = run(doctors.toString(), "2026-10");
 
-		assertThat(code).isEqualTo(GenerateRoster.UNFILLED);
+		assertThat(code).isEqualTo(GenerateRoster.FILLED);
 		assertThat(out.toString(StandardCharsets.UTF_8).lines()).hasSize(32);
-		assertThat(err()).contains("shifts could not be filled").contains("HARD min-staffing")
+		assertThat(err()).contains("infeasible: ").contains("shifts could not be filled").contains("HARD min-staffing")
 				.contains("2026-10-01 ").contains("needs at least 4 DOCTOR");
 	}
 

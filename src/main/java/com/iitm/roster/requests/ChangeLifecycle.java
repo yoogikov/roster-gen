@@ -59,10 +59,10 @@ public class ChangeLifecycle {
 	public ChangeResult file(EditCommand command, Actor actor) {
 		Objects.requireNonNull(command, "command");
 		Objects.requireNonNull(actor, "actor");
-		YearMonth month = YearMonth.from(command.slot().date());
+		YearMonth month = command.month();
 		Roster roster = rosters.findByMonth(month)
 				.orElseThrow(() -> new IllegalArgumentException("no roster for " + month));
-		Decision decision = policy.may(actor, new Action.EditShift(command.slot(), staffIds(command)), roster);
+		Decision decision = policy.may(actor, actionFor(command), roster);
 		if (!(decision instanceof Decision.RequiresApproval)) {
 			return new ChangeResult.NotAllowed(decision);
 		}
@@ -133,14 +133,18 @@ public class ChangeLifecycle {
 			case EditCommand.Move move -> new ChangeRequest(UUID.randomUUID().toString(), month, "move",
 					move.slot().date(), move.slot().shift().code(), null, move.fromStaffId(), move.toStaffId(), null,
 					RequestState.PENDING, clock.instant());
+			case EditCommand.MoveWeeklyOff ignored -> throw new IllegalArgumentException(
+					"a weekly-off move is applied directly; it is not stored for approval");
 		};
 	}
 
-	private static Set<String> staffIds(EditCommand command) {
+	private static Action actionFor(EditCommand command) {
 		return switch (command) {
-			case EditCommand.Assign assign -> Set.of(assign.staffId());
-			case EditCommand.Unassign unassign -> Set.of(unassign.staffId());
-			case EditCommand.Move move -> Set.of(move.fromStaffId(), move.toStaffId());
+			case EditCommand.Assign assign -> new Action.EditShift(assign.slot(), Set.of(assign.staffId()));
+			case EditCommand.Unassign unassign -> new Action.EditShift(unassign.slot(), Set.of(unassign.staffId()));
+			case EditCommand.Move move -> new Action.EditShift(move.slot(), Set.of(move.fromStaffId(), move.toStaffId()));
+			case EditCommand.MoveWeeklyOff moveOff -> new Action.EditWeeklyOff(moveOff.fromDate(), moveOff.toDate(),
+					moveOff.staffId());
 		};
 	}
 

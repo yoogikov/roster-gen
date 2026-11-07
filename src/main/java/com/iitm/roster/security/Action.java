@@ -36,6 +36,19 @@ public sealed interface Action {
 
 	}
 
+	/** Move a doctor's weekly off from {@code fromDate} to {@code toDate}. */
+	record EditWeeklyOff(LocalDate fromDate, LocalDate toDate, String staffId) implements Action {
+
+		public EditWeeklyOff {
+			Objects.requireNonNull(fromDate, "fromDate");
+			Objects.requireNonNull(toDate, "toDate");
+			if (staffId == null || staffId.isBlank()) {
+				throw new IllegalArgumentException("staffId must not be blank");
+			}
+		}
+
+	}
+
 	/** Ask to exchange {@code offered} (the proposer's) for {@code wanted} (someone else's). */
 	record ProposeSwap(Assignment offered, Assignment wanted) implements Action {
 

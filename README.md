@@ -55,8 +55,9 @@ console at `http://localhost:8080/h2-console` (JDBC URL `jdbc:h2:mem:roster`,
 user `sa`, empty password). The console still asks for HTTP Basic, same as the
 app.
 
-Open `http://localhost:8080`. The browser prompts for HTTP Basic. There is no
-session cookie and CSRF is off.
+Open `http://localhost:8080` and sign in on `/login` (or use HTTP Basic for the
+JSON API). Browser pages keep a session so **Sign out** works; `/api/**` stays
+stateless Basic auth. CSRF is off for the sheet forms and the demo script.
 
 Pages:
 

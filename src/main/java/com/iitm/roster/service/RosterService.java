@@ -6,6 +6,7 @@ import com.iitm.roster.constraints.Violation;
 import com.iitm.roster.domain.Actor;
 import com.iitm.roster.domain.Assignment;
 import com.iitm.roster.domain.AuditEvent;
+import com.iitm.roster.domain.DayOff;
 import com.iitm.roster.domain.Leave;
 import com.iitm.roster.domain.Roster;
 import com.iitm.roster.domain.RosterStatus;
@@ -96,9 +97,9 @@ public class RosterService {
 			throw new IllegalArgumentException("nothing to apply");
 		}
 		List<EditCommand> batch = List.copyOf(commands);
-		YearMonth month = YearMonth.from(batch.get(0).slot().date());
+		YearMonth month = batch.get(0).month();
 		for (EditCommand command : batch) {
-			if (!YearMonth.from(command.slot().date()).equals(month)) {
+			if (!command.month().equals(month)) {
 				throw new IllegalArgumentException("edits must all fall in " + month);
 			}
 		}
@@ -196,27 +197,39 @@ public class RosterService {
 		return freed;
 	}
 
-	/** The roster with the removed assignment (if any) taken out, and the assignment to add (if any). */
+	/** The roster with removals applied, and an assignment to add (if any). */
 	private record Change(Roster without, Optional<Assignment> added, String summary) {
 	}
 
 	private Change plan(EditCommand command, Roster before) {
-		ShiftSlot slot = command.slot();
 		return switch (command) {
 			case EditCommand.Assign assign -> {
-				Assignment added = new Assignment(slot, staffById(assign.staffId()), assign.post());
+				Assignment added = new Assignment(assign.slot(), staffById(assign.staffId()), assign.post());
 				yield new Change(before, Optional.of(added), "assigned " + assign.staffId() + " to " + describe(added));
 			}
 			case EditCommand.Unassign unassign -> {
-				Assignment removed = existing(before, slot, staffById(unassign.staffId()));
+				Assignment removed = existing(before, unassign.slot(), staffById(unassign.staffId()));
 				yield new Change(before.withoutAssignment(removed), Optional.empty(),
 						"removed " + unassign.staffId() + " from " + describe(removed));
 			}
 			case EditCommand.Move move -> {
-				Assignment removed = existing(before, slot, staffById(move.fromStaffId()));
-				Assignment added = new Assignment(slot, staffById(move.toStaffId()), removed.post());
+				Assignment removed = existing(before, move.slot(), staffById(move.fromStaffId()));
+				Assignment added = new Assignment(move.slot(), staffById(move.toStaffId()), removed.post());
 				yield new Change(before.withoutAssignment(removed), Optional.of(added),
 						"moved " + describe(removed) + " from " + move.fromStaffId() + " to " + move.toStaffId());
+			}
+			case EditCommand.MoveWeeklyOff moveOff -> {
+				Staff doctor = staffById(moveOff.staffId());
+				DayOff current = new DayOff(doctor, moveOff.fromDate());
+				if (!before.hasWeeklyOff(doctor, moveOff.fromDate())) {
+					throw new IllegalArgumentException(moveOff.staffId() + " has no weekly off on " + moveOff.fromDate());
+				}
+				if (before.hasWeeklyOff(doctor, moveOff.toDate())) {
+					throw new IllegalArgumentException(moveOff.staffId() + " already has a weekly off on " + moveOff.toDate());
+				}
+				Roster next = before.withoutWeeklyOff(current).withWeeklyOffs(List.of(new DayOff(doctor, moveOff.toDate())));
+				yield new Change(next, Optional.empty(),
+						"moved weekly off for " + moveOff.staffId() + " from " + moveOff.fromDate() + " to " + moveOff.toDate());
 			}
 		};
 	}

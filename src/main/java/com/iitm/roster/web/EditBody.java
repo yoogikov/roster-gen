@@ -16,13 +16,17 @@ public record EditBody(String type, LocalDate date, String shift, String staffId
 		Post post) {
 
 	EditCommand toCommand() {
-		ShiftSlot slot = new ShiftSlot(date, shift(shift));
+		ShiftSlot slot = slot();
 		return switch (type) {
 			case "assign" -> new EditCommand.Assign(slot, staffId, post == null ? Post.GENERAL : post);
 			case "unassign" -> new EditCommand.Unassign(slot, staffId);
 			case "move" -> new EditCommand.Move(slot, fromStaffId, toStaffId);
 			default -> throw new IllegalArgumentException("unknown edit type: " + type);
 		};
+	}
+
+	ShiftSlot slot() {
+		return new ShiftSlot(date, shift(shift));
 	}
 
 	/** Everyone whose shifts this edit changes. The policy needs the set. */

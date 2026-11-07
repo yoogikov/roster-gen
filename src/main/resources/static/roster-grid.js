@@ -3,28 +3,30 @@
 	if (!form) {
 		return;
 	}
+	var typeSelect = form.elements.type;
+	function syncMoveFields() {
+		var move = typeSelect.value === "move";
+		document.getElementById("staff-label").hidden = move;
+		document.getElementById("from-label").hidden = !move;
+		document.getElementById("to-label").hidden = !move;
+	}
+	typeSelect.addEventListener("change", syncMoveFields);
+	syncMoveFields();
+
 	document.querySelectorAll("[data-edit='true']").forEach(function (cell) {
 		cell.addEventListener("click", function () {
-			var text = cell.textContent.trim();
 			form.elements.date.value = cell.dataset.date;
 			form.elements.shift.value = cell.dataset.shift;
-			form.elements.post.value = "GENERAL";
-			if (text.length === 0) {
-				var id = window.prompt("Doctor id to assign on general duty");
-				if (!id) {
-					return;
-				}
-				form.elements.type.value = "assign";
-				form.elements.staffId.value = id.trim();
-			} else {
-				var existing = window.prompt("Doctor id to take off this shift", "");
-				if (!existing) {
-					return;
-				}
-				form.elements.type.value = "unassign";
-				form.elements.staffId.value = existing.trim();
+		});
+	});
+
+	document.querySelectorAll("[data-weekly='true']").forEach(function (cell) {
+		cell.addEventListener("click", function () {
+			var weeklyForm = document.getElementById("weekly-off-form");
+			if (!weeklyForm) {
+				return;
 			}
-			form.submit();
+			weeklyForm.elements.fromDate.value = cell.dataset.date;
 		});
 	});
 }());

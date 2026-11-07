@@ -180,11 +180,11 @@ class RosterJourneyTest {
 			}
 			String yesterday = day.minusDays(1).toString();
 			for (String doctor : List.of("D07", "D08", "D09", "D10", "D11", "D02", "D03", "D04", "D05")) {
-				if (busy.contains(doctor + ":" + day) || offs.contains(doctor + ":" + day)
-						|| nights.contains(doctor + ":" + yesterday)) {
-					continue;
+				if (!(busy.contains(doctor + ":" + day) || offs.contains(doctor + ":" + day)
+						|| nights.contains(doctor + ":" + yesterday))) {
+					return Map.of("type", "assign", "date", day.toString(), "shift", "II", "staffId", doctor, "post",
+							"GENERAL");
 				}
-				return Map.of("type", "assign", "date", day.toString(), "shift", "II", "staffId", doctor, "post", "GENERAL");
 			}
 		}
 		throw new AssertionError("no free doctor to assign on Shift II");
@@ -198,22 +198,20 @@ class RosterJourneyTest {
 		List<Assignment> rights = movable(roster, "D06");
 		for (Assignment left : lefts) {
 			for (Assignment right : rights) {
-				if (left.slot().date().equals(right.slot().date())) {
-					continue;
+				if (!left.slot().date().equals(right.slot().date())
+						&& receiverFree("D06", left, offs, nights, busy)
+						&& receiverFree("D01", right, offs, nights, busy)) {
+					Map<String, String> body = new LinkedHashMap<>();
+					body.put("offeredDate", left.slot().date().toString());
+					body.put("offeredShift", left.slot().shift().code());
+					body.put("offeredStaffId", "D01");
+					body.put("offeredPost", left.post().name());
+					body.put("wantedDate", right.slot().date().toString());
+					body.put("wantedShift", right.slot().shift().code());
+					body.put("wantedStaffId", "D06");
+					body.put("wantedPost", right.post().name());
+					return body;
 				}
-				if (!receiverFree("D06", left, offs, nights, busy) || !receiverFree("D01", right, offs, nights, busy)) {
-					continue;
-				}
-				Map<String, String> body = new LinkedHashMap<>();
-				body.put("offeredDate", left.slot().date().toString());
-				body.put("offeredShift", left.slot().shift().code());
-				body.put("offeredStaffId", "D01");
-				body.put("offeredPost", left.post().name());
-				body.put("wantedDate", right.slot().date().toString());
-				body.put("wantedShift", right.slot().shift().code());
-				body.put("wantedStaffId", "D06");
-				body.put("wantedPost", right.post().name());
-				return body;
 			}
 		}
 		throw new AssertionError("D01 and D06 have no safe day-shift pair; D01 movable " + lefts.size()

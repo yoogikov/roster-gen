@@ -177,6 +177,14 @@ class AuthorizationPolicyTest {
 				.isInstanceOf(Decision.Deny.class);
 	}
 
+	@Test
+	void onlyAdminMayMoveAWeeklyOff() {
+		Action.EditWeeklyOff move = new Action.EditWeeklyOff(TODAY.plusDays(1), TODAY.plusDays(2), "D01");
+		assertThat(policy.may(ADMIN, move, PUBLISHED)).isEqualTo(ALLOW);
+		assertThat(policy.may(DOCTOR_1, move, PUBLISHED)).isInstanceOf(Decision.Deny.class);
+		assertThat(policy.may(RECEPTION, move, PUBLISHED)).isInstanceOf(Decision.Deny.class);
+	}
+
 	private static Action.EditShift edit(LocalDate date, String... staffIds) {
 		return new Action.EditShift(new ShiftSlot(date, StandardShifts.SHIFT_II), Set.of(staffIds));
 	}

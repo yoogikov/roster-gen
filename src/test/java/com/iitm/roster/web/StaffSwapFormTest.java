@@ -119,8 +119,8 @@ class StaffSwapFormTest {
 				.andExpect(content().string(org.hamcrest.Matchers.containsString("swap approved")));
 
 		Roster after = stored();
-		assertThat(after.assignmentsOn(offered.slot())).anyMatch(a -> a.staff().id().equals("D06"));
-		assertThat(after.assignmentsOn(wanted.slot())).anyMatch(a -> a.staff().id().equals("D01"));
+		assertThat(after.assignmentsOn(offered.slot())).anyMatch(a -> "D06".equals(a.staff().id()));
+		assertThat(after.assignmentsOn(wanted.slot())).anyMatch(a -> "D01".equals(a.staff().id()));
 	}
 
 	@Test
@@ -212,13 +212,11 @@ class StaffSwapFormTest {
 		List<Assignment> rights = movable(roster, "D06");
 		for (Assignment left : lefts) {
 			for (Assignment right : rights) {
-				if (left.slot().date().equals(right.slot().date())) {
-					continue;
+				if (!left.slot().date().equals(right.slot().date())
+						&& receiverFree("D06", left, offs, nights, busy)
+						&& receiverFree("D01", right, offs, nights, busy)) {
+					return new Assignment[] { left, right };
 				}
-				if (!receiverFree("D06", left, offs, nights, busy) || !receiverFree("D01", right, offs, nights, busy)) {
-					continue;
-				}
-				return new Assignment[] { left, right };
 			}
 		}
 		throw new AssertionError("D01 and D06 have no safe day-shift pair");

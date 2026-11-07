@@ -9,6 +9,7 @@ import com.iitm.roster.constraints.Violation;
 import com.iitm.roster.domain.Actor;
 import com.iitm.roster.domain.Assignment;
 import com.iitm.roster.domain.AuditEvent;
+import com.iitm.roster.domain.DayOff;
 import com.iitm.roster.domain.Post;
 import com.iitm.roster.domain.Role;
 import com.iitm.roster.domain.Roster;
@@ -261,6 +262,29 @@ class RosterServiceEditTest {
 	void moveToTheSamePersonIsRefusedWhenTheCommandIsBuilt() {
 		assertThatThrownBy(() -> new EditCommand.Move(slot(DAY, MORNING), "S01", "S01"))
 				.isInstanceOf(IllegalArgumentException.class);
+	}
+
+	@Test
+	void moveWeeklyOffRelocatesTheDayOffWithOneAuditEvent() {
+		Roster start = new Roster(JULY, RosterStatus.DRAFT, List.of(), List.of(new DayOff(DOC_A, DAY)));
+		rosters.save(start);
+
+		EditResult result = service.applyEdit(new EditCommand.MoveWeeklyOff(DAY, "S01", DAY.plusDays(2)), ADMIN);
+
+		assertThat(result).isInstanceOf(EditResult.Applied.class);
+		assertThat(rosters.findByMonth(JULY).orElseThrow().weeklyOffs())
+				.containsExactly(new DayOff(DOC_A, DAY.plusDays(2)));
+		assertThat(audit.findAll()).extracting(AuditEvent::summary)
+				.containsExactly("moved weekly off for S01 from 2026-07-10 to 2026-07-12");
+	}
+
+	@Test
+	void moveWeeklyOffFromADayWithoutOneThrows() {
+		saveRoster();
+
+		assertThatThrownBy(() -> service.applyEdit(new EditCommand.MoveWeeklyOff(DAY, "S01", DAY.plusDays(1)), ADMIN))
+				.isInstanceOf(IllegalArgumentException.class)
+				.hasMessageContaining("has no weekly off");
 	}
 
 	@Test

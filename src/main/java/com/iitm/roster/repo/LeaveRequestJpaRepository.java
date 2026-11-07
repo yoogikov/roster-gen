@@ -14,6 +14,7 @@ interface LeaveRequestJpaRepository extends JpaRepository<LeaveRequestEntity, St
 	List<LeaveRequestEntity> findByStateAndFirstDayLessThanEqualAndLastDayGreaterThanEqualOrderByCreatedAtAsc(
 			RequestState state, LocalDate to, LocalDate from);
 
+	@SuppressWarnings("PMD.MethodNamingConventions") // Spring Data needs the underscore for the association path
 	List<LeaveRequestEntity> findByStaff_IdOrderByCreatedAtDesc(String staffId);
 
 }

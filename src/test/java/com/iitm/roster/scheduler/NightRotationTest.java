@@ -114,4 +114,21 @@ class NightRotationTest {
 				.isInstanceOf(IllegalArgumentException.class);
 	}
 
+	@Test
+	void theDoctorOnTheNightBeforeTheMonthDoesNotGetTheFirstNightToo() {
+		List<Staff> doctors = doctors(3);
+
+		Map<LocalDate, Staff> nights = NightRotation.plan(OCTOBER, doctors, doctors.get(0), List.of(), doctors.get(0));
+
+		assertThat(ids(nights, 1, 4)).containsExactly("D02", "D01", "D03", "D02");
+	}
+
+	@Test
+	void withNoNightBeforeTheMonthTheRotationIsUnchanged() {
+		List<Staff> doctors = doctors(3);
+
+		assertThat(NightRotation.plan(OCTOBER, doctors, doctors.get(0), List.of(), null))
+				.isEqualTo(NightRotation.plan(OCTOBER, doctors, doctors.get(0), List.of()));
+	}
+
 }

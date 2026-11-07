@@ -14,6 +14,7 @@ import com.iitm.roster.domain.Assignment;
 import com.iitm.roster.domain.Post;
 import com.iitm.roster.domain.Roster;
 import com.iitm.roster.domain.RosterStatus;
+import com.iitm.roster.domain.ShiftSlot;
 import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.List;
@@ -50,6 +51,35 @@ class PostDutyOffConstraintTest {
 	@Test
 	void aNightOnTheLastDayHasItsOffDayInTheNextMonth() {
 		assertThat(constraint.check(with(night(31, D1)))).isEmpty();
+	}
+
+	@Test
+	void aNightOnTheLastDayOfTheMonthBeforeMakesTheFirstPostDutyOff() {
+		Assignment lastNightOfSeptember = new Assignment(new ShiftSlot(LocalDate.of(2026, 9, 30), NIGHT), D1);
+		PostDutyOffConstraint carried = new PostDutyOffConstraint(NIGHT, Severity.HARD, List.of(lastNightOfSeptember));
+
+		List<Violation> found = carried.check(with(List.of(), at(1, SHIFT_II, D1, Post.GENERAL), at(1, SHIFT_I, D2, Post.WARD)));
+
+		assertThat(found).singleElement().satisfies(violation -> {
+			assertThat(violation.date()).isEqualTo(OCTOBER.atDay(1));
+			assertThat(violation.message()).contains("Test Doctor 1");
+		});
+	}
+
+	@Test
+	void theCarriedInNightReachesOnlyTheFirst() {
+		Assignment lastNightOfSeptember = new Assignment(new ShiftSlot(LocalDate.of(2026, 9, 30), NIGHT), D1);
+		PostDutyOffConstraint carried = new PostDutyOffConstraint(NIGHT, Severity.HARD, List.of(lastNightOfSeptember));
+
+		assertThat(carried.check(with(List.of(), at(2, SHIFT_I, D1, Post.GENERAL)))).isEmpty();
+	}
+
+	@Test
+	void aCarriedInDayShiftIsNotANight() {
+		Assignment lastDayOfSeptember = new Assignment(new ShiftSlot(LocalDate.of(2026, 9, 30), SHIFT_II), D1);
+		PostDutyOffConstraint carried = new PostDutyOffConstraint(NIGHT, Severity.HARD, List.of(lastDayOfSeptember));
+
+		assertThat(carried.check(with(List.of(), at(1, SHIFT_I, D1, Post.GENERAL)))).isEmpty();
 	}
 
 }

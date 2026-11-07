@@ -90,7 +90,7 @@ public class RosterGenerationService {
 		for (Staff doctor : input.doctors()) {
 			staff.save(doctor);
 		}
-		MonthInput withLeave = withApprovedLeave(input);
+		MonthInput withLeave = MonthInputs.withCarriedIn(withApprovedLeave(input), rosters, generator.night());
 		GenerationResult result = generator.generate(withLeave);
 		inputs.save(MonthInputs.toStored(withLeave));
 		String summary;

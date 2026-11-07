@@ -57,7 +57,13 @@ public final class HospitalRosterGenerator {
 		StaffingPlan dayShifts = staffing(input);
 		List<Constraint> constraints = constraints(input);
 
-		Map<LocalDate, Staff> nights = NightRotation.plan(input.month(), input.doctors(), input.firstOnNights(), input.leaves());
+		Staff nightBefore = input.carriedIn().stream()
+				.filter(a -> a.slot().shift().equals(night) && a.slot().date().equals(input.month().atDay(1).minusDays(1)))
+				.map(Assignment::staff)
+				.findFirst()
+				.orElse(null);
+		Map<LocalDate, Staff> nights = NightRotation.plan(input.month(), input.doctors(), input.firstOnNights(), input.leaves(),
+				nightBefore);
 		List<DayOff> offs = new WeeklyOffPlanner(dayShifts, List.of(morning, afternoon))
 				.plan(input.month(), input.doctors(), nights, input.leaves());
 
@@ -101,7 +107,7 @@ public final class HospitalRosterGenerator {
 				new MinStaffingConstraint(staffing(input), Severity.HARD),
 				new PostCoverageConstraint(List.of(morning, afternoon), Severity.HARD),
 				new NightIncludesMorningWardConstraint(morning, night, Severity.HARD),
-				new PostDutyOffConstraint(night, Severity.HARD),
+				new PostDutyOffConstraint(night, Severity.HARD, input.carriedIn()),
 				new NoLeaveConflictConstraint(input.leaves(), Severity.HARD),
 				new WeeklyOffConstraint(night, input.leaves(), Severity.HARD),
 				new WeeklyShiftBlockConstraint(morning, afternoon, Severity.SOFT));

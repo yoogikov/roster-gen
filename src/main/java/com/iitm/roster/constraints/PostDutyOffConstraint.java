@@ -8,17 +8,28 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
 
-/** After a night, the doctor has the next day off (post-duty off): no shift may start on it. */
+/**
+ * After a night, the doctor has the next day off (post-duty off): no shift may start on it.
+ * Nights carried in from the month before count too, so the doctor on the night of its last day
+ * is off on this month's 1st.
+ */
 public final class PostDutyOffConstraint implements Constraint {
 
 	public static final String ID = "post-duty-off";
 
 	private final ShiftType night;
 	private final Severity severity;
+	private final List<Assignment> carriedIn;
 
 	public PostDutyOffConstraint(ShiftType night, Severity severity) {
+		this(night, severity, List.of());
+	}
+
+	/** @param carriedIn assignments from the month before; only its nights matter here */
+	public PostDutyOffConstraint(ShiftType night, Severity severity, List<Assignment> carriedIn) {
 		this.night = Objects.requireNonNull(night, "night");
 		this.severity = Objects.requireNonNull(severity, "severity");
+		this.carriedIn = List.copyOf(carriedIn);
 	}
 
 	@Override
@@ -35,7 +46,9 @@ public final class PostDutyOffConstraint implements Constraint {
 	public List<Violation> check(Roster roster) {
 		List<Violation> violations = new ArrayList<>();
 		RosterIndex index = new RosterIndex(roster);
-		for (Assignment nightDuty : roster.assignments()) {
+		List<Assignment> nightsAndCarriedIn = new ArrayList<>(carriedIn);
+		nightsAndCarriedIn.addAll(roster.assignments());
+		for (Assignment nightDuty : nightsAndCarriedIn) {
 			if (!nightDuty.slot().shift().equals(night)) {
 				continue;
 			}

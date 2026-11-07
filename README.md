@@ -1,17 +1,17 @@
 # roster-gen: IITM Hospital duty roster
 
 CS5013 project. A Spring Boot web app that generates, edits and publishes the monthly
-duty roster for doctors and nurses at IITM Hospital, with an audit trail, leave and swap
-requests, role-based authorization and PDF export.
+duty roster for doctors at IITM Hospital, with an audit trail, leave and swap
+requests, role-based authorization and CSV export.
 
 Stakeholder: Dr. Rebecca Punithavalli, CMO, IITM Hospital.
 
 ## Team and module owners
 
-| Member | Roll no. | GitHub | Modules (proposed, not yet confirmed) |
+| Member | Roll no. | GitHub | Modules |
 |---|---|---|---|
-| Yoogi Kovendhan | CS23B068 | `yoogi_kov` | `domain`, `constraints`, `rules`, `scheduler`, `export` |
-| Tushar Jain | CS23B064 | `tushar3q34` | `repo`, `service`, `requests`, `security`, `web` |
+| Yoogi Kovendhan | CS23B068 | [`yoogi_kov`](https://github.com/yoogi_kov) | `domain`, `constraints`, `rules`, `scheduler`, `export` |
+| Tushar Jain | CS23B064 | [`tushar3q34`](https://github.com/tushar3q34) | `repo`, `service`, `requests`, `security`, `web` |
 
 Package responsibilities and allowed dependencies are documented in each
 `src/main/java/com/iitm/roster/*/package-info.java`. A layer may only call the layer
@@ -25,37 +25,112 @@ constraints                          (policy)
 domain                               (core, depends on nothing)
 ```
 
-## Prerequisites
+`requests` also calls `service` and `security` (same layer) so a swap approval can
+run `applyEdit` and `AuthorizationPolicy`. That is gap 27.
 
-- JDK 21 (e.g. Temurin 21). Gradle does not need to be installed; use the wrapper.
-- Postgres only for the `prod` profile.
+## Install
 
-## Run (dev profile)
+1. JDK 21 (Temurin 21 is what CI uses). Confirm with `java -version`.
+2. Clone this repository. Gradle does not need to be installed; use `./gradlew`.
+3. Docker is needed only for the `prod` profile (Postgres 16).
 
 ```bash
+git clone https://github.com/yoogikov/roster-gen.git
+cd roster-gen
+./gradlew test
+```
+
+Use synthetic doctors only (`Test Doctor 1` … `Test Doctor 11`, ids `D01` … `D11`).
+There is no import of a real hospital sheet.
+
+## Run (dev, default)
+
+```bash
+export ROSTER_DEV_PASSWORD='<pick-one>'
 ./gradlew bootRun
 ```
 
-`dev` is the default profile: in-memory H2, schema recreated on every start, H2 console
-at `http://localhost:8080/h2-console` (JDBC URL `jdbc:h2:mem:roster`, user `sa`, empty
-password). Use synthetic data only.
+`dev` uses in-memory H2, recreates the schema on every start, and serves the H2
+console at `http://localhost:8080/h2-console` (JDBC URL `jdbc:h2:mem:roster`,
+user `sa`, empty password). The console still asks for HTTP Basic, same as the
+app.
 
-Every request needs HTTP Basic auth; no session is kept, and CSRF is off because there is
-no session cookie. The `dev` profile has synthetic users `admin` (ADMIN), `reception`
-(RECEPTION), `staff1` (STAFF, doctor `D01`) and `staff2` (STAFF, doctor `D06`), all with
-the password in `ROSTER_DEV_PASSWORD`. If that is unset, a random password is generated
-and printed in the startup log.
+Open `http://localhost:8080`. The browser prompts for HTTP Basic. There is no
+session cookie and CSRF is off.
 
-`demo/mid-demo.sh` drives the JSON API: generate a month, read it, export CSV, reject a
-double-booking, accept one edit, publish, swap, lapse, and show a staff edit refused.
-There is no import endpoint.
+Pages:
+
+| Path | What it is |
+|---|---|
+| `/` | Home: generate a month (admin) |
+| `/rosters/2026-12` | Roster sheet. Staff see it read-only |
+| `/audit` | Audit log |
+| `/inbox` | Swap, change and leave requests |
+| `/rules` | Rule templates |
+| `/leave` | Leave request form |
+
+CSV download is on the sheet and at `GET /api/rosters/{month}/export?format=csv`.
+PDF export is not built (Yoogi's `PdfExporter`).
+
+`demo/mid-demo.sh` drives the JSON API: generate, read, export CSV, reject a
+double-booking, accept one edit, publish, swap, lapse, and show a staff edit of
+a draft refused. There is no import endpoint.
 
 ```bash
-ROSTER_DEV_PASSWORD=<pick-one> ./gradlew bootRun
-curl -u admin:<pick-one> http://localhost:8080/api/...
+ROSTER_DEV_PASSWORD='<pick-one>' ./gradlew bootRun
+# another terminal
+./demo/mid-demo.sh
 ```
 
-The H2 console is not yet exempted from the security config.
+## Admin account
+
+Every request needs HTTP Basic. The four synthetic logins are the same in `dev`
+and `prod`; they are not hospital staff.
+
+| Username | Role | Staff id | Password |
+|---|---|---|---|
+| `admin` | ADMIN | — | `ROSTER_DEV_PASSWORD` (dev) or `ROSTER_ADMIN_PASSWORD` (prod) |
+| `reception` | RECEPTION | — | same |
+| `staff1` | STAFF | `D01` | same |
+| `staff2` | STAFF | `D06` | same |
+
+If `ROSTER_DEV_PASSWORD` is unset, `dev` generates a random password and prints it
+in the startup log (`ROSTER_DEV_PASSWORD not set; dev users share generated password`).
+`prod` refuses to start without `ROSTER_ADMIN_PASSWORD`.
+
+Admin can generate a month, edit cells, publish, approve or reject inbox items,
+and save rules. Staff can request leave, propose a swap of their own shifts, and
+view the published sheet. Reception can view.
+
+## Run (prod, local Postgres)
+
+There is no IITM CC account and no consent for a public host (gap 29). Run
+Postgres on the machine that will serve the app. Flyway applies
+`src/main/resources/db/migration/V1__hospital_roster.sql` on the first start;
+Hibernate only validates after that.
+
+```bash
+export ROSTER_ADMIN_PASSWORD='<pick-one>'
+./demo/run-prod.sh
+```
+
+Or by hand:
+
+```bash
+docker compose up -d
+export ROSTER_DB_URL=jdbc:postgresql://localhost:5432/roster
+export ROSTER_DB_USER=roster
+export ROSTER_DB_PASSWORD=roster
+export ROSTER_ADMIN_PASSWORD='<pick-one>'
+./gradlew bootJar
+SPRING_PROFILES_ACTIVE=prod java -jar build/libs/roster-0.0.1-SNAPSHOT.jar
+```
+
+If any of `ROSTER_DB_URL`, `ROSTER_DB_USER`, `ROSTER_DB_PASSWORD` or
+`ROSTER_ADMIN_PASSWORD` is missing, the app refuses to start.
+
+The four synthetic logins are the ones in [Admin account](#admin-account). Log in
+as `admin` with `ROSTER_ADMIN_PASSWORD`.
 
 ## Test and build
 
@@ -64,32 +139,16 @@ The H2 console is not yet exempted from the security config.
 ./gradlew build    # compile, test, PMD, SpotBugs, jar
 ```
 
+`RosterJourneyTest` is the full path the plan asked for: save a rule, generate
+December, edit, swap, export CSV, then check the audit sequence.
+
 Reports are written to `build/reports/` (`tests/`, `pmd/`, `spotbugs/`). PMD and
-SpotBugs are report-only for now: findings do not fail the build, but each one must be
-fixed or suppressed with `@SuppressWarnings` plus a comment saying why.
+SpotBugs are report-only (`ignoreFailures`): findings do not fail the build, but
+each one must be fixed or suppressed with a comment saying why. `web`, `service`
+and `repo` currently have none.
 
-CI (`.github/workflows/build.yml`) runs `./gradlew build` on every push and pull request.
-
-## Run (prod profile)
-
-Hosting is not arranged: there is no IITM CC account and no consent for a free-tier
-host. Until there is one, run Postgres on the machine that will serve the app:
-
-```bash
-docker compose up -d
-export ROSTER_DB_URL=jdbc:postgresql://localhost:5432/roster
-export ROSTER_DB_USER=roster
-export ROSTER_DB_PASSWORD=roster
-SPRING_PROFILES_ACTIVE=prod java -jar build/libs/roster-0.0.1-SNAPSHOT.jar
-```
-
-If any variable is missing the app refuses to start. Hibernate only validates the
-schema in `prod`; it never changes it, and nothing creates the tables yet, so the
-first start on an empty database fails validation.
-
-The pages are the roster sheet (`/rosters/2026-11`), the audit log (`/audit`), the
-request inbox (`/inbox`), the rule editor (`/rules`) and leave (`/leave`). The browser
-asks for the dev password. Staff see the sheet read-only. PDF export is not built.
+CI (`.github/workflows/build.yml`) runs `./gradlew build` on every push and pull
+request.
 
 ## Documentation
 
@@ -100,5 +159,5 @@ asks for the dev password. Staff see the sheet read-only. PDF export is not buil
 
 ## Contact
 
-- Yoogi Kovendhan: <!-- TODO: email -->
-- Tushar Jain: <!-- TODO: email -->
+- Yoogi Kovendhan (CS23B068): yoogikov@gmail.com · GitHub [`yoogi_kov`](https://github.com/yoogi_kov)
+- Tushar Jain (CS23B064): tushar3q34@gmail.com · GitHub [`tushar3q34`](https://github.com/tushar3q34)

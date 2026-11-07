@@ -10,7 +10,7 @@ than declaring it; keep this current.
 | 3 | The rule list has not been written down and confirmed by the CMO. | Constraints may be wrong. | Write it down, get it confirmed on paper; unconfirmed rules are SOFT. |
 | 4 | `rules` (user-authored rule shapes) moved after the mid-demo. | Departs from the design doc. | Build in the 10–23 Oct phase. |
 | 5 | Proposal PDF was built from a mostly unfilled template (prior work, tech stack, verification plan, milestones, risks). | Evaluator may ask. | Too late to resubmit; answer from the design doc. |
-| 6 | Module owners not in the design doc; the split in `README.md` is proposed, not confirmed. | | Confirm and record. |
+| 6 | Module owners were not in the design doc. The split Tushar / Yoogi used from the plan is now the one in `README.md`. | | Recorded (7 Nov). |
 | 7 | Layer rules are documented in `package-info.java` but not enforced by a test. | A wrong-direction import would not be caught. | Consider an architecture test. |
 | 8 | Hosting for the final demo not decided. | | Decide by about 20 Oct. |
 | 9 | `AuthorizationPolicy` and `Decision` not written yet. They must be hand-written and depend on `domain` types (`Actor`, `Action`, `Roster`) that have not landed. Only authentication exists; no per-action authorization. | No role checks on actions yet. | Done (Tushar, 11 Oct): `AuthorizationPolicy`, `Decision`, `Action` and `HospitalAuthorizationPolicy` in `security`. AI-written at Tushar's request, not by hand as planned; disclosed in `docs/ai-log/2026-10-11-authorization-policy.md`. Nothing calls the policy yet (gap 24). |

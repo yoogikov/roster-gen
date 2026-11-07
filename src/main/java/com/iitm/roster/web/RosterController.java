@@ -79,9 +79,12 @@ public class RosterController {
 			return denied;
 		}
 		GenerationResult result = generation.generate(input, actor);
+		List<String> broken = generation.brokenRules(input.month()).stream()
+				.map(violation -> violation.constraintId() + ": " + violation.message())
+				.toList();
 		return ResponseEntity.ok(switch (result) {
-			case GenerationResult.Ok ok -> new Generated("ok", ok.softPenalty(), 0);
-			case GenerationResult.Infeasible infeasible -> new Generated("infeasible", null, infeasible.unfilled().size());
+			case GenerationResult.Ok ok -> new Generated("ok", ok.softPenalty(), 0, broken);
+			case GenerationResult.Infeasible infeasible -> new Generated("infeasible", null, infeasible.unfilled().size(), broken);
 		});
 	}
 
@@ -167,7 +170,12 @@ public class RosterController {
 	}
 
 	/** What generate did. {@code softPenalty} is set only when every slot was filled. */
-	public record Generated(String outcome, Integer softPenalty, int unfilled) {
+	public record Generated(String outcome, Integer softPenalty, int unfilled, List<String> broken) {
+
+		public Generated {
+			broken = List.copyOf(broken);
+		}
+
 	}
 
 	/** Warnings on an applied edit, or the hard violations that rejected one. */

@@ -1,5 +1,8 @@
 package com.iitm.roster.service;
 
+import com.iitm.roster.constraints.Constraint;
+import com.iitm.roster.constraints.Severity;
+import com.iitm.roster.constraints.Violation;
 import com.iitm.roster.domain.Actor;
 import com.iitm.roster.domain.AuditEvent;
 import com.iitm.roster.domain.HospitalCalendar;
@@ -98,11 +101,13 @@ public class RosterGenerationService {
 		switch (result) {
 			case GenerationResult.Ok ok -> {
 				roster = ok.roster();
-				summary = "generated " + input.month() + ": every shift filled, SOFT penalty " + ok.softPenalty();
+				summary = "generated " + input.month() + ": every shift filled, SOFT penalty " + ok.softPenalty()
+						+ brokenSuffix(roster, withLeave);
 			}
 			case GenerationResult.Infeasible infeasible -> {
 				roster = infeasible.partial();
-				summary = "generated " + input.month() + ": " + infeasible.unfilled().size() + " slots left unfilled";
+				summary = "generated " + input.month() + ": " + infeasible.unfilled().size() + " slots left unfilled"
+						+ brokenSuffix(roster, withLeave);
 			}
 		}
 		rosters.save(roster);
@@ -121,6 +126,40 @@ public class RosterGenerationService {
 		Objects.requireNonNull(month, "month");
 		return rosters.findByMonth(month.minusMonths(1))
 				.flatMap(previous -> NightRotation.firstAfter(previous, generator.night(), doctors));
+	}
+
+	/**
+	 * The HARD rules {@code month}'s stored roster breaks, checked against the input it was
+	 * generated from. A roster can break one even when every slot was filled: the weekly offs are
+	 * planned before the shifts, and a short week may not have room for everyone's.
+	 *
+	 * @return empty if the month has no roster or no stored input
+	 */
+	@Transactional(readOnly = true)
+	public List<Violation> brokenRules(YearMonth month) {
+		Objects.requireNonNull(month, "month");
+		Optional<Roster> roster = rosters.findByMonth(month);
+		Optional<StoredMonthInput> stored = inputs.findByMonth(month);
+		if (roster.isEmpty() || stored.isEmpty()) {
+			return List.of();
+		}
+		return hardViolations(roster.get(),
+				MonthInputs.withCarriedIn(MonthInputs.fromStored(stored.get()), rosters, generator.night()));
+	}
+
+	private List<Violation> hardViolations(Roster roster, MonthInput input) {
+		List<Violation> broken = new ArrayList<>();
+		for (Constraint constraint : generator.constraints(input)) {
+			if (constraint.severity() == Severity.HARD) {
+				broken.addAll(constraint.check(roster));
+			}
+		}
+		return broken;
+	}
+
+	private String brokenSuffix(Roster roster, MonthInput input) {
+		int broken = hardViolations(roster, input).size();
+		return broken == 0 ? "" : "; " + broken + " HARD rule" + (broken == 1 ? "" : "s") + " broken";
 	}
 
 	/** The holidays {@code month} was last generated with; none if it never was. */

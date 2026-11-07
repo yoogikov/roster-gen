@@ -194,6 +194,39 @@ class RosterGenerationServiceTest {
 				.assignmentsOn(new ShiftSlot(OCTOBER.atEndOfMonth(), NIGHT)).get(0).staff();
 	}
 
+	/**
+	 * Found by {@code HospitalRosterProperties} (shrunk): 10 doctors, February 2026, one leave at the
+	 * end of the last, six-day week. That week has room for only 9 weekly offs, so one doctor gets
+	 * none. Every slot is still filled, so the result is Ok; the broken rule must be reported anyway.
+	 */
+	@Test
+	void aHardRuleTheMonthCannotKeepIsReportedEvenWhenEverySlotIsFilled() {
+		YearMonth february = YearMonth.of(2026, 2);
+		List<Staff> doctors = new ArrayList<>();
+		for (int i = 1; i <= 10; i++) {
+			doctors.add(new Staff(String.format("D%02d", i), "Test Doctor " + i, StaffRole.DOCTOR));
+		}
+		MonthInput input = new MonthInput(february, doctors, doctors.get(0),
+				List.of(new Leave(doctors.get(5), february.atDay(27), february.atDay(28))),
+				new HospitalCalendar(Set.of(february.atDay(2))), 4, 2);
+
+		GenerationResult result = generation.generate(input, ADMIN);
+
+		assertThat(result).isInstanceOf(GenerationResult.Ok.class);
+		assertThat(generation.brokenRules(february)).extracting(Violation::message)
+				.containsExactly("Test Doctor 10 has no weekly off in the week of 2026-02-23");
+		assertThat(audit.findAll()).singleElement()
+				.satisfies(event -> assertThat(event.summary()).endsWith("; 1 HARD rule broken"));
+	}
+
+	@Test
+	void aRosterThatKeepsEveryHardRuleReportsNoneBroken() {
+		generation.generate(october(), ADMIN);
+
+		assertThat(generation.brokenRules(OCTOBER)).isEmpty();
+		assertThat(generation.brokenRules(YearMonth.of(2027, 5))).isEmpty();
+	}
+
 	private static MonthInput october() {
 		List<Staff> doctors = new ArrayList<>();
 		for (int i = 1; i <= 11; i++) {

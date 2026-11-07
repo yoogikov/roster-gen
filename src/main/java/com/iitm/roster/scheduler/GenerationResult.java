@@ -10,7 +10,9 @@ public sealed interface GenerationResult {
 
 	/**
 	 * Every open slot filled without adding a HARD violation; {@code softPenalty} is the
-	 * total SOFT penalty of {@code roster}.
+	 * total SOFT penalty of {@code roster}. A HARD violation already in the starting roster can
+	 * remain: in the hospital generator, a week too short for everyone's weekly off. Check the
+	 * HARD rules to know whether the roster keeps them all.
 	 */
 	record Ok(Roster roster, int softPenalty) implements GenerationResult {
 

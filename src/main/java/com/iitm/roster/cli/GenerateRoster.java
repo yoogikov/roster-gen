@@ -40,13 +40,12 @@ import java.util.Set;
  *
  * <p>Without {@code --out} the roster CSV goes to standard output. The summary (filled or not,
  * unfilled shifts, broken rules) always goes to standard error, so it never mixes with the CSV.
- * Exit code 0 when every shift is filled, 1 when some are left unfilled (the partial roster is
- * still written), 2 for bad arguments or a bad doctor list.
+ * When some shifts are left unfilled the summary says the roster is infeasible and the partial
+ * roster is still written. Exit code 0 unless the arguments or the doctor list are bad (2).
  */
 public final class GenerateRoster {
 
 	static final int FILLED = 0;
-	static final int UNFILLED = 1;
 	static final int BAD_INPUT = 2;
 
 	static final String USAGE = "usage: generate <doctors.csv> <yyyy-MM> [--holidays yyyy-MM-dd,...] [--out roster.csv]";
@@ -114,15 +113,13 @@ public final class GenerateRoster {
 
 	private int summarise(MonthInput input, GenerationResult result, Roster roster, PrintStream err) {
 		err.println(input.month() + ": " + input.doctors().size() + " doctors, " + input.leaves().size() + " leave entries");
-		int code = FILLED;
 		switch (result) {
 			case GenerationResult.Ok ok -> err.println("every shift filled; SOFT penalty " + ok.softPenalty());
 			case GenerationResult.Infeasible infeasible -> {
-				err.println(infeasible.unfilled().size() + " shifts could not be filled:");
+				err.println("infeasible: " + infeasible.unfilled().size() + " shifts could not be filled:");
 				for (ShiftSlot slot : infeasible.unfilled()) {
 					err.println("  " + slot.date() + " shift " + slot.shift().code());
 				}
-				code = UNFILLED;
 			}
 		}
 		for (Constraint constraint : generator.constraints(input)) {
@@ -135,7 +132,7 @@ public final class GenerateRoster {
 				broken.forEach(v -> err.println("  " + v.date() + " " + v.message()));
 			}
 		}
-		return code;
+		return FILLED;
 	}
 
 	/** The parsed command line. {@code out} is null for standard output. */

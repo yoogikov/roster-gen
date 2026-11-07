@@ -23,10 +23,12 @@ import com.iitm.roster.repo.MonthInputStore;
 import com.iitm.roster.repo.RosterStore;
 import com.iitm.roster.repo.StaffStore;
 import com.iitm.roster.repo.StoredMonthInput;
+import com.iitm.roster.scheduler.HospitalRosterGenerator;
 import com.iitm.roster.security.HospitalAuthorizationPolicy;
 import com.iitm.roster.service.EditCommand;
 import com.iitm.roster.service.EditResult;
 import com.iitm.roster.service.LeaveLedger;
+import com.iitm.roster.service.RosterGenerationService;
 import com.iitm.roster.service.RosterService;
 import java.time.Clock;
 import java.time.Instant;
@@ -91,7 +93,10 @@ class LeaveAndChangeTest {
 		edits = new RosterService(rosters, staff, audit, month -> inputs.findByMonth(month)
 				.<List<Constraint>>map(stored -> List.of(new NoLeaveConflictConstraint(stored.leaves(), Severity.HARD)))
 				.orElse(List.of()), clock);
-		leaves = new LeaveLifecycle(leaveRequests, staff, rosters, ledger, policy, clock);
+		RosterGenerationService generation = new RosterGenerationService(
+				new HospitalRosterGenerator(StandardShifts.SHIFT_I, StandardShifts.SHIFT_II, StandardShifts.NIGHT),
+				staff, inputs, rosters, audit, leaveRequests, clock);
+		leaves = new LeaveLifecycle(leaveRequests, staff, rosters, ledger, generation, edits, policy, clock);
 		changes = new ChangeLifecycle(edits, rosters, changeRequests, policy, clock);
 	}
 

@@ -2,6 +2,7 @@ package com.iitm.roster.repo;
 
 import com.iitm.roster.domain.LeaveRequest;
 import com.iitm.roster.domain.RequestState;
+import java.time.YearMonth;
 import java.util.List;
 import java.util.Optional;
 import org.springframework.stereotype.Component;
@@ -35,6 +36,15 @@ public class LeaveRequestStore {
 	@Transactional(readOnly = true)
 	public List<LeaveRequest> findOpen() {
 		return requests.findByStateInOrderByCreatedAtAsc(List.of(RequestState.PENDING)).stream()
+				.map(LeaveRequestEntity::toDomain)
+				.toList();
+	}
+
+	/** Approved leave with at least one day in {@code month}, oldest request first. */
+	@Transactional(readOnly = true)
+	public List<LeaveRequest> findApproved(YearMonth month) {
+		return requests.findByStateAndFirstDayLessThanEqualAndLastDayGreaterThanEqualOrderByCreatedAtAsc(
+				RequestState.APPROVED, month.atEndOfMonth(), month.atDay(1)).stream()
 				.map(LeaveRequestEntity::toDomain)
 				.toList();
 	}

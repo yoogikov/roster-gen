@@ -6,6 +6,7 @@ import com.iitm.roster.constraints.Violation;
 import com.iitm.roster.domain.Actor;
 import com.iitm.roster.domain.Assignment;
 import com.iitm.roster.domain.AuditEvent;
+import com.iitm.roster.domain.Leave;
 import com.iitm.roster.domain.Roster;
 import com.iitm.roster.domain.RosterStatus;
 import com.iitm.roster.domain.ShiftSlot;
@@ -157,6 +158,42 @@ public class RosterService {
 		rosters.save(published);
 		audit.append(new AuditEvent(clock.instant(), actor.username(), month, "published " + month));
 		return published;
+	}
+
+	/**
+	 * Takes {@code leave}'s doctor off every shift that starts on one of the leave days, and
+	 * returns the assignments removed. Writes one audit event per freed shift.
+	 *
+	 * <p>Unlike {@link #applyEdit}, this may leave new HARD violations behind, typically a
+	 * shift below minimum staffing: approved leave wins over staffing, and the freed shifts are
+	 * for the admin to fill or swap. The leave must fall inside one month, as a leave request does.
+	 *
+	 * @throws IllegalArgumentException if the leave's month has no roster
+	 */
+	@Transactional
+	public List<Assignment> releaseForLeave(Leave leave, Actor actor) {
+		Objects.requireNonNull(leave, "leave");
+		Objects.requireNonNull(actor, "actor");
+		YearMonth month = YearMonth.from(leave.firstDay());
+		Roster roster = rosters.findByMonth(month)
+				.orElseThrow(() -> new IllegalArgumentException("no roster for " + month));
+		List<Assignment> freed = roster.assignments().stream()
+				.filter(assignment -> assignment.staff().id().equals(leave.staff().id()))
+				.filter(assignment -> leave.covers(assignment.slot().date()))
+				.toList();
+		if (freed.isEmpty()) {
+			return freed;
+		}
+		Roster after = roster;
+		for (Assignment assignment : freed) {
+			after = after.withoutAssignment(assignment);
+		}
+		rosters.save(after);
+		for (Assignment assignment : freed) {
+			audit.append(new AuditEvent(clock.instant(), actor.username(), month,
+					"freed " + describe(assignment) + " from " + leave.staff().id() + ": approved leave"));
+		}
+		return freed;
 	}
 
 	/** The roster with the removed assignment (if any) taken out, and the assignment to add (if any). */

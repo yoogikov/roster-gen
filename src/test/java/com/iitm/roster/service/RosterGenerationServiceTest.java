@@ -20,6 +20,7 @@ import com.iitm.roster.domain.ShiftSlot;
 import com.iitm.roster.domain.Staff;
 import com.iitm.roster.domain.StaffRole;
 import com.iitm.roster.repo.AuditStore;
+import com.iitm.roster.repo.LeaveRequestStore;
 import com.iitm.roster.repo.MonthInputStore;
 import com.iitm.roster.repo.RosterStore;
 import com.iitm.roster.repo.StaffStore;
@@ -42,7 +43,7 @@ import org.springframework.context.annotation.Import;
  */
 @DataJpaTest
 @Import({RosterGenerationService.class, RosterService.class, ServiceConfig.class,
-		RosterStore.class, StaffStore.class, AuditStore.class, MonthInputStore.class})
+		RosterStore.class, StaffStore.class, AuditStore.class, MonthInputStore.class, LeaveRequestStore.class})
 class RosterGenerationServiceTest {
 
 	private static final YearMonth OCTOBER = YearMonth.of(2026, 10);

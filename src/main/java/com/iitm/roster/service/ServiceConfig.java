@@ -3,10 +3,15 @@ package com.iitm.roster.service;
 import com.iitm.roster.domain.HospitalTime;
 import com.iitm.roster.domain.StandardShifts;
 import com.iitm.roster.export.CsvRosterExporter;
+import com.iitm.roster.export.Format;
+import com.iitm.roster.export.PdfRosterExporter;
+import com.iitm.roster.export.RosterExporter;
+import com.iitm.roster.export.RosterExporters;
 import com.iitm.roster.repo.MonthInputStore;
 import com.iitm.roster.scheduler.HospitalRosterGenerator;
 import java.time.Clock;
 import java.util.List;
+import java.util.Map;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -26,10 +31,15 @@ public class ServiceConfig {
 		return new HospitalRosterGenerator(StandardShifts.SHIFT_I, StandardShifts.SHIFT_II, StandardShifts.NIGHT);
 	}
 
-	/** Same exporter the CLI uses. Constructed here so the web layer can inject {@code RosterExporter}. */
+	/**
+	 * CSV (the same exporter the CLI uses) and the printable PDF, behind one {@code RosterExporter}
+	 * that picks by format.
+	 */
 	@Bean
-	CsvRosterExporter csvRosterExporter() {
-		return new CsvRosterExporter(StandardShifts.SHIFT_I, StandardShifts.SHIFT_II, StandardShifts.NIGHT);
+	RosterExporter rosterExporter() {
+		return new RosterExporters(Map.of(
+				Format.CSV, new CsvRosterExporter(StandardShifts.SHIFT_I, StandardShifts.SHIFT_II, StandardShifts.NIGHT),
+				Format.PDF, new PdfRosterExporter(StandardShifts.SHIFT_I, StandardShifts.SHIFT_II, StandardShifts.NIGHT)));
 	}
 
 	/**

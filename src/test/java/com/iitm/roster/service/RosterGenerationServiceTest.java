@@ -125,6 +125,22 @@ class RosterGenerationServiceTest {
 		return ((EditResult.Rejected) result).violations().stream().map(Violation::constraintId).toList();
 	}
 
+	@Test
+	void theMonthsHolidaysAreKeptAndSurviveGeneratingAgain() {
+		generation.generate(october(), ADMIN);
+
+		generation.regenerate(OCTOBER, ADMIN);
+
+		assertThat(generation.calendarFor(OCTOBER).holidays())
+				.containsExactlyInAnyOrder(LocalDate.of(2026, 10, 2), LocalDate.of(2026, 10, 20));
+		assertThat(inputs.findByMonth(OCTOBER).orElseThrow().calendar().holidays()).hasSize(2);
+	}
+
+	@Test
+	void aMonthNeverGeneratedHasNoHolidays() {
+		assertThat(generation.calendarFor(YearMonth.of(2027, 3)).holidays()).isEmpty();
+	}
+
 	private static MonthInput october() {
 		List<Staff> doctors = new ArrayList<>();
 		for (int i = 1; i <= 11; i++) {

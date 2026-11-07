@@ -35,6 +35,9 @@ D11,Test Doctor 11</textarea></label>
 		<label>Leave <textarea name="leave" rows="3" placeholder="D03,2026-11-10,2026-11-12"></textarea></label>
 		<p>Leave: one per line, doctor id, first day, last day. It is saved as approved leave, and
 			approved leave requests for the month are added automatically.</p>
+		<label>Holidays <input name="holidays" size="40" placeholder="2026-12-25, 2026-12-31"/></label>
+		<p>Holidays are staffed like weekends. Leave the box blank to keep the month's saved
+			holidays when generating again; type <code>none</code> to clear them.</p>
 		<label>First on nights <input name="firstOnNights" value="D01" required="required"/></label>
 		<label>Weekday doctors per shift <input name="weekday" type="number" value="4" min="2"/></label>
 		<label>Weekend doctors per shift <input name="weekend" type="number" value="2" min="2"/></label>

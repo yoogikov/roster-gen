@@ -1,12 +1,19 @@
 package com.iitm.roster.web;
 
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.httpBasic;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
+import com.iitm.roster.domain.Actor;
 import com.iitm.roster.domain.Assignment;
+import com.iitm.roster.domain.Leave;
 import com.iitm.roster.domain.Post;
 import com.iitm.roster.domain.Roster;
 import com.iitm.roster.domain.ShiftSlot;
@@ -17,6 +24,8 @@ import com.iitm.roster.requests.ChangeLifecycle;
 import com.iitm.roster.requests.LeaveLifecycle;
 import com.iitm.roster.requests.RequestInbox;
 import com.iitm.roster.requests.SwapLifecycle;
+import com.iitm.roster.scheduler.GenerationResult;
+import com.iitm.roster.scheduler.MonthInput;
 import com.iitm.roster.security.CurrentActor;
 import com.iitm.roster.security.DevUsersConfig;
 import com.iitm.roster.security.HospitalAuthorizationPolicy;
@@ -27,10 +36,12 @@ import com.iitm.roster.service.RosterService;
 import com.iitm.roster.service.RuleBook;
 import java.time.Clock;
 import java.time.Instant;
+import java.time.LocalDate;
 import java.time.YearMonth;
 import java.time.ZoneOffset;
 import java.util.Optional;
 import org.junit.jupiter.api.Test;
+import org.mockito.ArgumentCaptor;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
 import org.springframework.boot.webmvc.test.autoconfigure.WebMvcTest;
@@ -107,6 +118,37 @@ class PageControllerTest {
 		mockMvc.perform(get("/").with(httpBasic("staff1", PASSWORD)))
 				.andExpect(status().isOk())
 				.andExpect(content().string(org.hamcrest.Matchers.containsString("read-only")));
+	}
+
+	@Test
+	void leaveTypedOnTheGeneratePageGoesIntoTheMonthInput() throws Exception {
+		when(generation.generate(any(MonthInput.class), any(Actor.class)))
+				.thenReturn(new GenerationResult.Ok(Roster.empty(YearMonth.of(2026, 12)), 0));
+
+		mockMvc.perform(post("/rosters/generate").with(httpBasic("admin", PASSWORD))
+						.param("month", "2026-12").param("doctors", "D01,Test Doctor 1\nD02,Test Doctor 2\nD03,Test Doctor 3")
+						.param("firstOnNights", "D01").param("weekday", "2").param("weekend", "2")
+						.param("leave", "D02, 2026-12-15, 2026-12-17\n\nD03,2026-12-24,2026-12-24"))
+				.andExpect(status().isOk())
+				.andExpect(content().string(org.hamcrest.Matchers.containsString("generated 2026-12")));
+
+		ArgumentCaptor<MonthInput> input = ArgumentCaptor.forClass(MonthInput.class);
+		verify(generation).generate(input.capture(), any(Actor.class));
+		assertThat(input.getValue().leaves()).containsExactly(
+				new Leave(new Staff("D02", "Test Doctor 2", StaffRole.DOCTOR), LocalDate.of(2026, 12, 15), LocalDate.of(2026, 12, 17)),
+				new Leave(new Staff("D03", "Test Doctor 3", StaffRole.DOCTOR), LocalDate.of(2026, 12, 24), LocalDate.of(2026, 12, 24)));
+	}
+
+	@Test
+	void aBadLeaveLineIsReportedAndNothingIsGenerated() throws Exception {
+		mockMvc.perform(post("/rosters/generate").with(httpBasic("admin", PASSWORD))
+						.param("month", "2026-12").param("doctors", "D01,Test Doctor 1\nD02,Test Doctor 2")
+						.param("firstOnNights", "D01").param("weekday", "2").param("weekend", "2")
+						.param("leave", "D09,2026-12-15,2026-12-17"))
+				.andExpect(status().isOk())
+				.andExpect(content().string(org.hamcrest.Matchers.containsString("leave for D09, who is not in the doctor list")));
+
+		verify(generation, never()).generate(any(MonthInput.class), any(Actor.class));
 	}
 
 	private static Roster sample() {

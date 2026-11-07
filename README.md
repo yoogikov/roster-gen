@@ -62,7 +62,7 @@ Pages:
 
 | Path | What it is |
 |---|---|
-| `/` | Home: generate a month (admin) |
+| `/` | Home: generate a month (admin), with optional leave lines (`id,first,last`) |
 | `/rosters/2026-12` | Roster sheet. Staff see it read-only |
 | `/audit` | Audit log |
 | `/inbox` | Swap, change and leave requests |

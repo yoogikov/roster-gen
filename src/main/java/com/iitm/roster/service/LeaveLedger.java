@@ -7,6 +7,7 @@ import java.time.YearMonth;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
+import java.util.Optional;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -24,26 +25,37 @@ public class LeaveLedger {
 	}
 
 	/**
-	 * Records {@code leave} on its month. The doctor must already be one of that month's doctors.
+	 * Records {@code leave} on its month's stored input, so edits are checked against it.
+	 * A month that has not been generated yet has no input; then nothing is recorded, and the
+	 * leave reaches the month when it is generated (from the approved leave requests).
 	 *
-	 * @throws IllegalArgumentException if the leave crosses a month boundary, or that month has no stored input
+	 * @return true if the month has a stored input (whether or not the leave was already on it)
+	 * @throws IllegalArgumentException if the leave crosses a month boundary, or the month has
+	 *         an input and the doctor is not one of its doctors
 	 */
 	@Transactional
-	public void add(Leave leave) {
+	public boolean add(Leave leave) {
 		Objects.requireNonNull(leave, "leave");
 		YearMonth month = YearMonth.from(leave.firstDay());
 		if (!YearMonth.from(leave.lastDay()).equals(month)) {
 			throw new IllegalArgumentException("leave must stay inside one month");
 		}
-		StoredMonthInput stored = inputs.findByMonth(month)
-				.orElseThrow(() -> new IllegalArgumentException("no month input for " + month));
-		if (!stored.doctors().contains(leave.staff())) {
+		Optional<StoredMonthInput> found = inputs.findByMonth(month);
+		if (found.isEmpty()) {
+			return false;
+		}
+		StoredMonthInput stored = found.get();
+		if (stored.doctors().stream().noneMatch(doctor -> doctor.id().equals(leave.staff().id()))) {
 			throw new IllegalArgumentException(leave.staff().id() + " is not a doctor on the " + month + " roster");
+		}
+		if (stored.leaves().contains(leave)) {
+			return true;
 		}
 		List<Leave> leaves = new ArrayList<>(stored.leaves());
 		leaves.add(leave);
 		inputs.save(new StoredMonthInput(stored.month(), stored.doctors(), stored.firstOnNights(), leaves,
 				stored.calendar(), stored.weekdayPerShift(), stored.weekendPerShift()));
+		return true;
 	}
 
 }

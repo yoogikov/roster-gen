@@ -2,21 +2,36 @@ package com.iitm.roster.security;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
+import com.iitm.roster.repo.UserAccountStore;
 import java.util.List;
 import org.junit.jupiter.api.Test;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.userdetails.UserDetailsService;
-import org.springframework.security.crypto.factory.PasswordEncoderFactories;
 import org.springframework.security.crypto.password.PasswordEncoder;
+import org.springframework.test.context.ActiveProfiles;
+import org.springframework.test.context.TestPropertySource;
 
+/** Seeded demo logins and the copy-on-load behaviour of {@link AccountUserDetailsService}. */
+@SpringBootTest
+@ActiveProfiles("dev")
+@TestPropertySource(properties = "roster.dev-users.password=" + DevUsersConfigTest.PASSWORD)
 class DevUsersConfigTest {
 
-	private final PasswordEncoder encoder = PasswordEncoderFactories.createDelegatingPasswordEncoder();
+	static final String PASSWORD = "test-only-password";
 
-	private final UserDetailsService users = new DevUsersConfig().devUsers("pw", encoder);
+	@Autowired
+	private UserDetailsService users;
+
+	@Autowired
+	private UserAccountStore accounts;
+
+	@Autowired
+	private PasswordEncoder encoder;
 
 	@Test
-	void eachDevUserHasExactlyItsRole() {
+	void eachSeededUserHasExactlyItsRole() {
 		assertThat(rolesOf("admin")).containsExactly("ROLE_ADMIN");
 		assertThat(rolesOf("reception")).containsExactly("ROLE_RECEPTION");
 		assertThat(rolesOf("staff1")).containsExactly("ROLE_STAFF");
@@ -26,13 +41,8 @@ class DevUsersConfigTest {
 	@Test
 	void passwordIsStoredEncodedNotInPlainText() {
 		String stored = users.loadUserByUsername("admin").getPassword();
-		assertThat(stored).isNotEqualTo("pw").startsWith("{bcrypt}");
-		assertThat(encoder.matches("pw", stored)).isTrue();
-	}
-
-	@Test
-	void configuredPasswordIsUsedAsGiven() {
-		assertThat(DevUsersConfig.resolvePassword("secret")).isEqualTo("secret");
+		assertThat(stored).isNotEqualTo(PASSWORD).startsWith("{bcrypt}");
+		assertThat(encoder.matches(PASSWORD, stored)).isTrue();
 	}
 
 	@Test
@@ -43,10 +53,14 @@ class DevUsersConfigTest {
 	}
 
 	@Test
-	void blankPasswordFallsBackToRandomOne() {
-		String first = DevUsersConfig.resolvePassword("  ");
-		String second = DevUsersConfig.resolvePassword(null);
-		assertThat(first).isNotBlank().isNotEqualTo(second);
+	void loadUserByUsernameReturnsAFreshCopy() {
+		RosterUser first = (RosterUser) users.loadUserByUsername("admin");
+		first.eraseCredentials();
+		RosterUser second = (RosterUser) users.loadUserByUsername("admin");
+		assertThat(second.getPassword()).isNotBlank();
+		assertThat(encoder.matches(PASSWORD, second.getPassword())).isTrue();
+		assertThat(accounts.findByUsername("admin")).get()
+				.satisfies(account -> assertThat(account.passwordHash()).isNotBlank());
 	}
 
 	private List<String> rolesOf(String username) {

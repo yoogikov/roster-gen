@@ -21,17 +21,10 @@
 	<p>One doctor per line: id, name. Synthetic names only.</p>
 	<form class="stack" method="post" action="/rosters/generate">
 		<label>Month <input name="month" value="2026-11" required="required"/></label>
-		<label>Doctors <textarea name="doctors" rows="6" required="required">D01,Test Doctor 1
-D02,Test Doctor 2
-D03,Test Doctor 3
-D04,Test Doctor 4
-D05,Test Doctor 5
-D06,Test Doctor 6
-D07,Test Doctor 7
-D08,Test Doctor 8
-D09,Test Doctor 9
-D10,Test Doctor 10
-D11,Test Doctor 11</textarea></label>
+		<label>Doctors <textarea name="doctors" rows="6" required="required"
+			th:text="${doctorLines}">D01,Test Doctor 1</textarea></label>
+		<p>Filled from active doctors on <a href="/doctors">/doctors</a>. Edit the box to change who is
+			rostered this month.</p>
 		<label>Leave <textarea name="leave" rows="3" placeholder="D03,2026-11-10,2026-11-12"></textarea></label>
 		<p>Leave: one per line, doctor id, first day, last day. It is saved as approved leave, and
 			approved leave requests for the month are added automatically.</p>

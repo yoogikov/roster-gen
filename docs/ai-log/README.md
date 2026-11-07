@@ -13,3 +13,4 @@ submission; the ones below are Tushar's later tasks that landed after that.
 | 2026-11-04 | [Roster sheet, leave and approvals](2026-11-04-phase-c.md) | Tushar | "Add the roster sheet, leave and approval requests" |
 | 2026-11-07 | [RosterJourneyTest and Postgres deploy](2026-11-07-roster-journey.md) | Tushar | "Add RosterJourneyTest covering generate, edit, swap and export" |
 | 2026-11-07 | [README handoff](2026-11-07-handoff.md) | Tushar | "Document install, run and admin setup for the handoff" |
+| 2026-11-07 | [Doctor accounts](2026-11-07-doctor-accounts.md) | Tushar | "Add doctor directory and per-doctor logins" |

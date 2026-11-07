@@ -8,6 +8,7 @@ import com.iitm.roster.export.PdfRosterExporter;
 import com.iitm.roster.export.RosterExporter;
 import com.iitm.roster.export.RosterExporters;
 import com.iitm.roster.repo.MonthInputStore;
+import com.iitm.roster.repo.RosterStore;
 import com.iitm.roster.scheduler.HospitalRosterGenerator;
 import java.time.Clock;
 import java.util.List;
@@ -43,13 +44,15 @@ public class ServiceConfig {
 	}
 
 	/**
-	 * The hospital rules for a month, built from the input its roster was generated from.
-	 * A month with no stored input (a roster not made by the generator) has no rules.
+	 * The hospital rules for a month, built from the input its roster was generated from, with
+	 * the previous month's last nights carried in (post-duty off on the 1st). A month with no
+	 * stored input (a roster not made by the generator) has no rules.
 	 */
 	@Bean
-	ConstraintSource constraintSource(MonthInputStore inputs, HospitalRosterGenerator generator) {
+	ConstraintSource constraintSource(MonthInputStore inputs, RosterStore rosters, HospitalRosterGenerator generator) {
 		return month -> inputs.findByMonth(month)
 				.map(MonthInputs::fromStored)
+				.map(input -> MonthInputs.withCarriedIn(input, rosters, generator.night()))
 				.map(generator::constraints)
 				.orElse(List.of());
 	}

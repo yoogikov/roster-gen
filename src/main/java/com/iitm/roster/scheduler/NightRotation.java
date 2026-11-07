@@ -45,6 +45,16 @@ public final class NightRotation {
 	 * @return the night doctor for each day that could be filled, in date order
 	 */
 	public static Map<LocalDate, Staff> plan(YearMonth month, List<Staff> order, Staff firstOnNights, List<Leave> leaves) {
+		return plan(month, order, firstOnNights, leaves, null);
+	}
+
+	/**
+	 * As {@link #plan(YearMonth, List, Staff, List)}, but {@code nightBefore}, the doctor on the
+	 * night before the month starts (null if none), does not get the 1st's night as well: the next
+	 * doctor who can takes it, swapping places in the order as for short leave.
+	 */
+	public static Map<LocalDate, Staff> plan(YearMonth month, List<Staff> order, Staff firstOnNights, List<Leave> leaves,
+			Staff nightBefore) {
 		int start = order.indexOf(Objects.requireNonNull(firstOnNights, "firstOnNights"));
 		if (start < 0) {
 			throw new IllegalArgumentException(firstOnNights.name() + " is not in the night rotation");
@@ -66,7 +76,7 @@ public final class NightRotation {
 				continue;
 			}
 			position %= cycle.size();
-			int available = nextAvailable(cycle, position, day, leaves, nights);
+			int available = nextAvailable(cycle, position, day, leaves, nights, nightBefore);
 			if (available < 0) {
 				continue;
 			}
@@ -129,11 +139,14 @@ public final class NightRotation {
 	}
 
 	/** Index of the first doctor from {@code position} on (wrapping) who can do tonight, or -1. */
-	private static int nextAvailable(List<Staff> cycle, int position, LocalDate day, List<Leave> leaves, Map<LocalDate, Staff> nights) {
+	private static int nextAvailable(List<Staff> cycle, int position, LocalDate day, List<Leave> leaves, Map<LocalDate, Staff> nights,
+			Staff nightBefore) {
+		boolean firstOfMonth = day.getDayOfMonth() == 1;
 		for (int step = 0; step < cycle.size(); step++) {
 			int index = (position + step) % cycle.size();
 			Staff doctor = cycle.get(index);
-			boolean onNightsYesterday = doctor.equals(nights.get(day.minusDays(1)));
+			boolean onNightsYesterday = doctor.equals(nights.get(day.minusDays(1)))
+					|| firstOfMonth && nightBefore != null && doctor.id().equals(nightBefore.id());
 			if (!onAnyLeave(doctor, day, leaves) && !onNightsYesterday) {
 				return index;
 			}

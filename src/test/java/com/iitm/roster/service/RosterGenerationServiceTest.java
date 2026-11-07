@@ -158,6 +158,42 @@ class RosterGenerationServiceTest {
 		assertThat(generation.continueNights(OCTOBER, october().doctors())).isEmpty();
 	}
 
+	@Test
+	void lastMonthsFinalNightDoctorIsOffOnTheFirstEvenWhenTypedAsFirstOnNights() {
+		MonthInput input = october();
+		generation.generate(input, ADMIN);
+		Staff lastNight = lastNightOfOctober();
+		YearMonth november = OCTOBER.plusMonths(1);
+
+		generation.generate(new MonthInput(november, input.doctors(), lastNight, List.of(), HospitalCalendar.noHolidays(), 4, 2),
+				ADMIN);
+
+		Roster roster = rosters.findByMonth(november).orElseThrow();
+		assertThat(roster.assignmentsFor(lastNight)).noneMatch(a -> a.slot().date().equals(november.atDay(1)));
+		assertThat(roster.assignmentsOn(new ShiftSlot(november.atDay(1), NIGHT))).extracting(Assignment::staff)
+				.doesNotContain(lastNight);
+	}
+
+	@Test
+	void anEditPuttingLastMonthsFinalNightDoctorOnTheFirstIsRejected() {
+		MonthInput input = october();
+		generation.generate(input, ADMIN);
+		Staff lastNight = lastNightOfOctober();
+		YearMonth november = OCTOBER.plusMonths(1);
+		generation.generate(new MonthInput(november, input.doctors(), input.doctors().get(0), List.of(),
+				HospitalCalendar.noHolidays(), 4, 2), ADMIN);
+
+		EditResult edit = editing.applyEdit(
+				new EditCommand.Assign(new ShiftSlot(november.atDay(1), SHIFT_II), lastNight.id()), ADMIN);
+
+		assertThat(rejectedIds(edit)).contains(PostDutyOffConstraint.ID);
+	}
+
+	private Staff lastNightOfOctober() {
+		return rosters.findByMonth(OCTOBER).orElseThrow()
+				.assignmentsOn(new ShiftSlot(OCTOBER.atEndOfMonth(), NIGHT)).get(0).staff();
+	}
+
 	private static MonthInput october() {
 		List<Staff> doctors = new ArrayList<>();
 		for (int i = 1; i <= 11; i++) {

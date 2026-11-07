@@ -2,6 +2,7 @@ package com.iitm.roster.service;
 
 import com.iitm.roster.domain.Actor;
 import com.iitm.roster.domain.AuditEvent;
+import com.iitm.roster.domain.HospitalCalendar;
 import com.iitm.roster.domain.Leave;
 import com.iitm.roster.domain.LeaveRequest;
 import com.iitm.roster.domain.RequestState;
@@ -13,6 +14,7 @@ import com.iitm.roster.repo.LeaveRequestStore;
 import com.iitm.roster.repo.MonthInputStore;
 import com.iitm.roster.repo.RosterStore;
 import com.iitm.roster.repo.StaffStore;
+import com.iitm.roster.repo.StoredMonthInput;
 import com.iitm.roster.scheduler.GenerationResult;
 import com.iitm.roster.scheduler.HospitalRosterGenerator;
 import com.iitm.roster.scheduler.MonthInput;
@@ -104,6 +106,13 @@ public class RosterGenerationService {
 		rosters.save(roster);
 		audit.append(new AuditEvent(clock.instant(), actor.username(), input.month(), summary));
 		return result;
+	}
+
+	/** The holidays {@code month} was last generated with; none if it never was. */
+	@Transactional(readOnly = true)
+	public HospitalCalendar calendarFor(YearMonth month) {
+		Objects.requireNonNull(month, "month");
+		return inputs.findByMonth(month).map(StoredMonthInput::calendar).orElseGet(HospitalCalendar::noHolidays);
 	}
 
 	/**

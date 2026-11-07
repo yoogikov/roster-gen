@@ -33,8 +33,10 @@ import java.time.LocalDate;
 import java.time.YearMonth;
 import java.time.format.DateTimeParseException;
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.stream.Collectors;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
@@ -82,7 +84,7 @@ public class PageController {
 	@PostMapping("/rosters/generate")
 	String generate(@RequestParam String month, @RequestParam String doctors, @RequestParam String firstOnNights,
 			@RequestParam int weekday, @RequestParam int weekend, @RequestParam(defaultValue = "") String leave,
-			Model model) {
+			@RequestParam(defaultValue = "") String holidays, Model model) {
 		model.addAttribute("admin", admin());
 		if (!admin()) {
 			model.addAttribute("notice", "only an admin can generate a roster");
@@ -92,8 +94,9 @@ public class PageController {
 			List<Staff> rostered = parseDoctors(doctors);
 			Staff first = rostered.stream().filter(doctor -> doctor.id().equals(firstOnNights.trim())).findFirst()
 					.orElseThrow(() -> new IllegalArgumentException("first on nights is not in the doctor list"));
-			MonthInput input = new MonthInput(YearMonth.parse(month), rostered, first, parseLeave(leave, rostered),
-					HospitalCalendar.noHolidays(), weekday, weekend);
+			YearMonth yearMonth = YearMonth.parse(month);
+			MonthInput input = new MonthInput(yearMonth, rostered, first, parseLeave(leave, rostered),
+					calendar(holidays, yearMonth), weekday, weekend);
 			GenerationResult result = generation.generate(input, current.get());
 			model.addAttribute("notice", switch (result) {
 				case GenerationResult.Ok ok -> "generated " + month + ", soft penalty " + ok.softPenalty();
@@ -285,6 +288,35 @@ public class PageController {
 			throw new IllegalArgumentException("name at least one doctor");
 		}
 		return doctors;
+	}
+
+	/**
+	 * The holidays typed on the Generate page, separated by commas or new lines. A blank box keeps
+	 * the holidays the month was last generated with, so generating again does not lose them;
+	 * {@code none} clears them.
+	 */
+	private HospitalCalendar calendar(String text, YearMonth month) {
+		String trimmed = text.trim();
+		if (trimmed.isEmpty()) {
+			return generation.calendarFor(month);
+		}
+		if ("none".equalsIgnoreCase(trimmed)) {
+			return HospitalCalendar.noHolidays();
+		}
+		Set<LocalDate> days = new HashSet<>();
+		for (String part : trimmed.split("[,\\s]+")) {
+			LocalDate day;
+			try {
+				day = LocalDate.parse(part);
+			} catch (DateTimeParseException ex) {
+				throw new IllegalArgumentException("holidays are yyyy-MM-dd: " + trimmed, ex);
+			}
+			if (!YearMonth.from(day).equals(month)) {
+				throw new IllegalArgumentException("holiday " + day + " is not in " + month);
+			}
+			days.add(day);
+		}
+		return new HospitalCalendar(days);
 	}
 
 	/** One leave per line: doctor id, first day, last day (yyyy-MM-dd). Blank lines are skipped. */

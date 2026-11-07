@@ -13,6 +13,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 import com.iitm.roster.domain.Actor;
 import com.iitm.roster.domain.Assignment;
+import com.iitm.roster.domain.HospitalCalendar;
 import com.iitm.roster.domain.Leave;
 import com.iitm.roster.domain.Post;
 import com.iitm.roster.domain.Roster;
@@ -40,6 +41,8 @@ import java.time.LocalDate;
 import java.time.YearMonth;
 import java.time.ZoneOffset;
 import java.util.Optional;
+import java.util.Set;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -91,6 +94,12 @@ class PageControllerTest {
 
 	@MockitoBean
 	private RuleBook rules;
+
+	/** A mock returns null; the real service returns no holidays for a month never generated. */
+	@BeforeEach
+	void noSavedHolidays() {
+		when(generation.calendarFor(any(YearMonth.class))).thenReturn(HospitalCalendar.noHolidays());
+	}
 
 	@Test
 	void staffSeeTheSheetWithoutTheEditForm() throws Exception {
@@ -149,6 +158,67 @@ class PageControllerTest {
 				.andExpect(content().string(org.hamcrest.Matchers.containsString("leave for D09, who is not in the doctor list")));
 
 		verify(generation, never()).generate(any(MonthInput.class), any(Actor.class));
+	}
+
+	@Test
+	void holidaysTypedOnTheGeneratePageGoIntoTheCalendar() throws Exception {
+		MonthInput input = generateWithHolidays("2026-12-02, 2026-12-25\n2026-12-31");
+
+		assertThat(input.calendar().holidays()).containsExactlyInAnyOrder(
+				LocalDate.of(2026, 12, 2), LocalDate.of(2026, 12, 25), LocalDate.of(2026, 12, 31));
+	}
+
+	@Test
+	void aBlankHolidayBoxKeepsTheMonthsSavedHolidays() throws Exception {
+		when(generation.calendarFor(YearMonth.of(2026, 12)))
+				.thenReturn(new HospitalCalendar(Set.of(LocalDate.of(2026, 12, 25))));
+
+		MonthInput input = generateWithHolidays("  ");
+
+		assertThat(input.calendar().holidays()).containsExactly(LocalDate.of(2026, 12, 25));
+	}
+
+	@Test
+	void noneClearsTheMonthsSavedHolidays() throws Exception {
+		when(generation.calendarFor(YearMonth.of(2026, 12)))
+				.thenReturn(new HospitalCalendar(Set.of(LocalDate.of(2026, 12, 25))));
+
+		MonthInput input = generateWithHolidays("none");
+
+		assertThat(input.calendar().holidays()).isEmpty();
+	}
+
+	@Test
+	void aHolidayThatIsNotADateIsReportedAndNothingIsGenerated() throws Exception {
+		postGenerate("25 Dec")
+				.andExpect(content().string(org.hamcrest.Matchers.containsString("holidays are yyyy-MM-dd: 25 Dec")));
+
+		verify(generation, never()).generate(any(MonthInput.class), any(Actor.class));
+	}
+
+	@Test
+	void aHolidayOutsideTheMonthIsReportedAndNothingIsGenerated() throws Exception {
+		postGenerate("2027-01-01")
+				.andExpect(content().string(org.hamcrest.Matchers.containsString("holiday 2027-01-01 is not in 2026-12")));
+
+		verify(generation, never()).generate(any(MonthInput.class), any(Actor.class));
+	}
+
+	private MonthInput generateWithHolidays(String holidays) throws Exception {
+		when(generation.generate(any(MonthInput.class), any(Actor.class)))
+				.thenReturn(new GenerationResult.Ok(Roster.empty(YearMonth.of(2026, 12)), 0));
+		postGenerate(holidays).andExpect(content().string(org.hamcrest.Matchers.containsString("generated 2026-12")));
+		ArgumentCaptor<MonthInput> input = ArgumentCaptor.forClass(MonthInput.class);
+		verify(generation).generate(input.capture(), any(Actor.class));
+		return input.getValue();
+	}
+
+	private org.springframework.test.web.servlet.ResultActions postGenerate(String holidays) throws Exception {
+		return mockMvc.perform(post("/rosters/generate").with(httpBasic("admin", PASSWORD))
+						.param("month", "2026-12").param("doctors", "D01,Test Doctor 1\nD02,Test Doctor 2")
+						.param("firstOnNights", "D01").param("weekday", "2").param("weekend", "2")
+						.param("holidays", holidays))
+				.andExpect(status().isOk());
 	}
 
 	private static Roster sample() {

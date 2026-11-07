@@ -11,6 +11,8 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
+import com.iitm.roster.constraints.Severity;
+import com.iitm.roster.constraints.Violation;
 import com.iitm.roster.domain.Actor;
 import com.iitm.roster.domain.Assignment;
 import com.iitm.roster.domain.HospitalCalendar;
@@ -40,6 +42,7 @@ import java.time.Instant;
 import java.time.LocalDate;
 import java.time.YearMonth;
 import java.time.ZoneOffset;
+import java.util.List;
 import java.util.Optional;
 import java.util.Set;
 import org.junit.jupiter.api.BeforeEach;
@@ -266,6 +269,20 @@ class PageControllerTest {
 						.param("month", "2026-12").param("doctors", "D01,Test Doctor 1\nD02,Test Doctor 2\nD03,Test Doctor 3")
 						.param("firstOnNights", first).param("weekday", "2").param("weekend", "2"))
 				.andExpect(status().isOk());
+	}
+
+	@Test
+	void hardRulesTheGeneratedMonthBreaksAreShownWithTheResult() throws Exception {
+		when(generation.brokenRules(YearMonth.of(2026, 12))).thenReturn(List.of(
+				new Violation("weekly-off", Severity.HARD, LocalDate.of(2026, 12, 21),
+						"Test Doctor 10 has no weekly off in the week of 2026-12-21")));
+
+		when(generation.generate(any(MonthInput.class), any(Actor.class)))
+				.thenReturn(new GenerationResult.Ok(Roster.empty(YearMonth.of(2026, 12)), 0));
+
+		postGenerate("none")
+				.andExpect(content().string(org.hamcrest.Matchers.containsString(
+						"1 HARD rule broken: Test Doctor 10 has no weekly off in the week of 2026-12-21")));
 	}
 
 	private static Roster sample() {

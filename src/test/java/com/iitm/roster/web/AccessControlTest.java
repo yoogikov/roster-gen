@@ -12,6 +12,9 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
+import com.iitm.roster.constraints.Severity;
+import com.iitm.roster.constraints.Violation;
+import com.iitm.roster.scheduler.GenerationResult;
 import com.iitm.roster.domain.ChangeRequest;
 import com.iitm.roster.domain.Post;
 import com.iitm.roster.domain.RequestState;
@@ -156,6 +159,24 @@ class AccessControlTest {
 	void anUnknownExportFormatIsABadRequest() throws Exception {
 		mockMvc.perform(get("/api/rosters/2026-07/export").param("format", "xlsx").with(httpBasic("admin", PASSWORD)))
 				.andExpect(status().isBadRequest());
+	}
+
+	@Test
+	void theJsonGenerateAnswerListsTheHardRulesTheMonthBreaks() throws Exception {
+		when(generation.generate(any(), any())).thenReturn(new GenerationResult.Ok(Roster.empty(JULY), 3));
+		when(generation.brokenRules(JULY)).thenReturn(List.of(new Violation("weekly-off", Severity.HARD,
+				LocalDate.of(2026, 7, 20), "Test Doctor 10 has no weekly off in the week of 2026-07-20")));
+
+		mockMvc.perform(post("/api/rosters/generate").with(httpBasic("admin", PASSWORD))
+						.contentType(MediaType.APPLICATION_JSON)
+						.content("""
+								{"month":"2026-07","doctors":[{"id":"D01","name":"Test Doctor 1","role":"DOCTOR"}],
+								 "firstOnNights":{"id":"D01","name":"Test Doctor 1","role":"DOCTOR"},
+								 "leaves":[],"calendar":{"holidays":[]},"weekdayPerShift":4,"weekendPerShift":2}
+								"""))
+				.andExpect(status().isOk())
+				.andExpect(jsonPath("$.outcome").value("ok"))
+				.andExpect(jsonPath("$.broken[0]").value("weekly-off: Test Doctor 10 has no weekly off in the week of 2026-07-20"));
 	}
 
 	static class ClockConfig {

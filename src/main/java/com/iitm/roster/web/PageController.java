@@ -1,5 +1,6 @@
 package com.iitm.roster.web;
 
+import com.iitm.roster.constraints.Violation;
 import com.iitm.roster.domain.Actor;
 import com.iitm.roster.domain.HospitalCalendar;
 import com.iitm.roster.domain.Leave;
@@ -111,7 +112,7 @@ public class PageController {
 			model.addAttribute("notice", switch (result) {
 				case GenerationResult.Ok ok -> "generated " + month + ", soft penalty " + ok.softPenalty();
 				case GenerationResult.Infeasible infeasible -> month + " left " + infeasible.unfilled().size() + " slots unfilled";
-			} + continued);
+			} + continued + brokenText(generation.brokenRules(yearMonth)));
 		} catch (RuntimeException ex) {
 			model.addAttribute("notice", ex.getMessage());
 		}
@@ -399,6 +400,14 @@ public class PageController {
 			case LeaveResult.NotAllowed notAllowed -> decisionText(notAllowed.decision());
 			case LeaveResult.Refused refused -> refused.reason();
 		};
+	}
+
+	private static String brokenText(List<Violation> broken) {
+		if (broken.isEmpty()) {
+			return "";
+		}
+		return "; " + broken.size() + " HARD rule" + (broken.size() == 1 ? "" : "s") + " broken: "
+				+ broken.stream().map(Violation::message).collect(Collectors.joining("; "));
 	}
 
 	private static String approvedText(LeaveResult.Approved approved) {

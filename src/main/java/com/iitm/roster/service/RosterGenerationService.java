@@ -18,6 +18,7 @@ import com.iitm.roster.repo.StoredMonthInput;
 import com.iitm.roster.scheduler.GenerationResult;
 import com.iitm.roster.scheduler.HospitalRosterGenerator;
 import com.iitm.roster.scheduler.MonthInput;
+import com.iitm.roster.scheduler.NightRotation;
 import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import java.time.Clock;
 import java.time.YearMonth;
@@ -26,6 +27,7 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
 import java.util.function.Function;
@@ -106,6 +108,19 @@ public class RosterGenerationService {
 		rosters.save(roster);
 		audit.append(new AuditEvent(clock.instant(), actor.username(), input.month(), summary));
 		return result;
+	}
+
+	/**
+	 * Who does {@code month}'s first night so the rotation carries on from the month before:
+	 * the doctor after that month's last night, in {@code doctors}' order.
+	 *
+	 * @return empty if the month before has no stored roster, or no night by anyone in {@code doctors}
+	 */
+	@Transactional(readOnly = true)
+	public Optional<Staff> continueNights(YearMonth month, List<Staff> doctors) {
+		Objects.requireNonNull(month, "month");
+		return rosters.findByMonth(month.minusMonths(1))
+				.flatMap(previous -> NightRotation.firstAfter(previous, generator.night(), doctors));
 	}
 
 	/** The holidays {@code month} was last generated with; none if it never was. */

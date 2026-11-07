@@ -221,6 +221,53 @@ class PageControllerTest {
 				.andExpect(status().isOk());
 	}
 
+	@Test
+	void aBlankFirstOnNightsContinuesLastMonthsRotation() throws Exception {
+		Staff d02 = new Staff("D02", "Test Doctor 2", StaffRole.DOCTOR);
+		when(generation.continueNights(any(YearMonth.class), any())).thenReturn(Optional.of(d02));
+		when(generation.generate(any(MonthInput.class), any(Actor.class)))
+				.thenReturn(new GenerationResult.Ok(Roster.empty(YearMonth.of(2026, 12)), 0));
+
+		postGenerateFirst("")
+				.andExpect(content().string(org.hamcrest.Matchers.containsString("nights start with D02, continuing from 2026-11")));
+
+		ArgumentCaptor<MonthInput> input = ArgumentCaptor.forClass(MonthInput.class);
+		verify(generation).generate(input.capture(), any(Actor.class));
+		assertThat(input.getValue().firstOnNights()).isEqualTo(d02);
+	}
+
+	@Test
+	void aBlankFirstOnNightsWithNoLastMonthAsksForOneAndGeneratesNothing() throws Exception {
+		when(generation.continueNights(any(YearMonth.class), any())).thenReturn(Optional.empty());
+
+		postGenerateFirst(" ")
+				.andExpect(content().string(org.hamcrest.Matchers.containsString(
+						"no roster for 2026-11 to continue the nights from; type who does the first night")));
+
+		verify(generation, never()).generate(any(MonthInput.class), any(Actor.class));
+	}
+
+	@Test
+	void aTypedFirstOnNightsIsUsedEvenWhenLastMonthCouldBeContinued() throws Exception {
+		when(generation.continueNights(any(YearMonth.class), any()))
+				.thenReturn(Optional.of(new Staff("D02", "Test Doctor 2", StaffRole.DOCTOR)));
+		when(generation.generate(any(MonthInput.class), any(Actor.class)))
+				.thenReturn(new GenerationResult.Ok(Roster.empty(YearMonth.of(2026, 12)), 0));
+
+		postGenerateFirst("D03");
+
+		ArgumentCaptor<MonthInput> input = ArgumentCaptor.forClass(MonthInput.class);
+		verify(generation).generate(input.capture(), any(Actor.class));
+		assertThat(input.getValue().firstOnNights().id()).isEqualTo("D03");
+	}
+
+	private org.springframework.test.web.servlet.ResultActions postGenerateFirst(String first) throws Exception {
+		return mockMvc.perform(post("/rosters/generate").with(httpBasic("admin", PASSWORD))
+						.param("month", "2026-12").param("doctors", "D01,Test Doctor 1\nD02,Test Doctor 2\nD03,Test Doctor 3")
+						.param("firstOnNights", first).param("weekday", "2").param("weekend", "2"))
+				.andExpect(status().isOk());
+	}
+
 	private static Roster sample() {
 		Staff doctor = new Staff("D01", "Test Doctor 1", StaffRole.DOCTOR);
 		return Roster.empty(JULY).withAssignment(

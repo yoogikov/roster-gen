@@ -141,6 +141,23 @@ class RosterGenerationServiceTest {
 		assertThat(generation.calendarFor(YearMonth.of(2027, 3)).holidays()).isEmpty();
 	}
 
+	@Test
+	void nextMonthsNightsContinueAfterTheLastNightOfThisMonth() {
+		MonthInput input = october();
+		generation.generate(input, ADMIN);
+		Staff lastNight = rosters.findByMonth(OCTOBER).orElseThrow()
+				.assignmentsOn(new ShiftSlot(OCTOBER.atEndOfMonth(), NIGHT)).get(0).staff();
+		int at = input.doctors().indexOf(lastNight);
+
+		assertThat(generation.continueNights(OCTOBER.plusMonths(1), input.doctors()))
+				.contains(input.doctors().get((at + 1) % input.doctors().size()));
+	}
+
+	@Test
+	void withNoRosterForLastMonthThereIsNothingToContinue() {
+		assertThat(generation.continueNights(OCTOBER, october().doctors())).isEmpty();
+	}
+
 	private static MonthInput october() {
 		List<Staff> doctors = new ArrayList<>();
 		for (int i = 1; i <= 11; i++) {

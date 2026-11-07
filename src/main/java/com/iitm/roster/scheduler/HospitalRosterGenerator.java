@@ -48,6 +48,11 @@ public final class HospitalRosterGenerator {
 		this.night = night;
 	}
 
+	/** The night shift this generator rosters. */
+	public ShiftType night() {
+		return night;
+	}
+
 	public GenerationResult generate(MonthInput input) {
 		StaffingPlan dayShifts = staffing(input);
 		List<Constraint> constraints = constraints(input);

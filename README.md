@@ -132,6 +132,21 @@ If any of `ROSTER_DB_URL`, `ROSTER_DB_USER`, `ROSTER_DB_PASSWORD` or
 The four synthetic logins are the ones in [Admin account](#admin-account). Log in
 as `admin` with `ROSTER_ADMIN_PASSWORD`.
 
+## Generate a roster from a doctor list
+
+No app, login or database needed. The input is a CSV of doctors in night-rotation order,
+with their leave (see `src/test/resources/fixtures/doctors-october-2026.csv`):
+
+```
+./gradlew generate --args="src/test/resources/fixtures/doctors-october-2026.csv 2026-10 --holidays 2026-10-02,2026-10-20 --out roster.csv"
+```
+
+`roster.csv` gets one row per day: nights, ward, casualty and general duty on each day
+shift, post-duty off and weekly offs. A summary is printed: whether every shift was filled,
+any shifts left unfilled, and which rules were broken. Without `--out`, the CSV goes to
+standard output. Exit code 0 = all filled, 1 = some unfilled (roster still written),
+2 = bad input.
+
 ## Test and build
 
 ```bash
@@ -152,8 +167,9 @@ request.
 
 ## Documentation
 
-- `docs/ai-log/`: one log per AI-assisted task (index in `docs/ai-log/README.md`)
-- `docs/disclosure/`: AI-use disclosure for each stage
+- `docs/ai-log/`: Tushar's later task logs (index in `docs/ai-log/README.md`). Older logs
+  and the per-stage disclosures are kept outside the repo until submission. Commits with
+  AI help carry a `Co-authored-by` trailer.
 - `docs/GAPS.md`: honest list of what is missing or behind plan
 - `docs/weekly-log/`: weekly contribution paragraph per member
 

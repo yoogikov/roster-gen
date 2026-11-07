@@ -11,6 +11,7 @@ import com.iitm.roster.domain.DayOff;
 import com.iitm.roster.domain.Post;
 import com.iitm.roster.domain.Roster;
 import com.iitm.roster.domain.StandardShifts;
+import com.iitm.roster.export.CsvRosterExporter;
 import com.iitm.roster.repo.SavedRule;
 import com.iitm.roster.service.RosterQuery;
 import com.iitm.roster.service.RuleBook;
@@ -126,9 +127,9 @@ class RosterJourneyTest {
 				.andExpect(status().isOk())
 				.andReturn();
 		String body = csv.getResponse().getContentAsString();
-		assertThat(body).startsWith("date,shift,staffId,name,post");
-		assertThat(body).contains(swap.get("offeredDate") + "," + swap.get("offeredShift") + ",D06,");
-		assertThat(body).contains(swap.get("wantedDate") + "," + swap.get("wantedShift") + ",D01,");
+		assertThat(body).startsWith(CsvRosterExporter.HEADER);
+		assertThat(csvRow(body, swap.get("offeredDate"))).contains("Test Doctor 6");
+		assertThat(csvRow(body, swap.get("wantedDate"))).contains("Test Doctor 1");
 
 		MvcResult audit = mockMvc.perform(get("/api/audit").with(httpBasic("admin", PASSWORD)))
 				.andExpect(status().isOk())
@@ -154,6 +155,15 @@ class RosterJourneyTest {
 
 	private Roster stored() {
 		return query.find(DECEMBER).orElseThrow();
+	}
+
+	private static String csvRow(String csv, String date) {
+		for (String line : csv.split("\n")) {
+			if (line.startsWith(date + ",")) {
+				return line;
+			}
+		}
+		throw new AssertionError("no CSV row for " + date);
 	}
 
 	private static Map<String, String> extraGeneral(Roster roster) {

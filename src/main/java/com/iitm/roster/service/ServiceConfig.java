@@ -2,6 +2,7 @@ package com.iitm.roster.service;
 
 import com.iitm.roster.domain.HospitalTime;
 import com.iitm.roster.domain.StandardShifts;
+import com.iitm.roster.export.CsvRosterExporter;
 import com.iitm.roster.repo.MonthInputStore;
 import com.iitm.roster.scheduler.HospitalRosterGenerator;
 import java.time.Clock;
@@ -23,6 +24,12 @@ public class ServiceConfig {
 	@Bean
 	HospitalRosterGenerator hospitalRosterGenerator() {
 		return new HospitalRosterGenerator(StandardShifts.SHIFT_I, StandardShifts.SHIFT_II, StandardShifts.NIGHT);
+	}
+
+	/** Same exporter the CLI uses. Constructed here so the web layer can inject {@code RosterExporter}. */
+	@Bean
+	CsvRosterExporter csvRosterExporter() {
+		return new CsvRosterExporter(StandardShifts.SHIFT_I, StandardShifts.SHIFT_II, StandardShifts.NIGHT);
 	}
 
 	/**

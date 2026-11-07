@@ -7,12 +7,14 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 import com.iitm.roster.constraints.Constraint;
 import com.iitm.roster.constraints.Severity;
+import com.iitm.roster.constraints.WeeklyShiftBlockConstraint;
 import com.iitm.roster.domain.Assignment;
 import com.iitm.roster.domain.DayOff;
 import com.iitm.roster.domain.HospitalCalendar;
 import com.iitm.roster.domain.Leave;
 import com.iitm.roster.domain.Post;
 import com.iitm.roster.domain.Roster;
+import com.iitm.roster.domain.RosterStatus;
 import com.iitm.roster.domain.ShiftSlot;
 import com.iitm.roster.domain.Staff;
 import com.iitm.roster.domain.StaffRole;
@@ -119,6 +121,28 @@ class HospitalRosterGeneratorTest {
 				assertThat(posts).as("%s", slot).containsOnlyOnce(Post.WARD, Post.CASUALTY);
 			}
 		}
+	}
+
+	/** The CMO's rule: when a shift is short, a doctor is pulled from the other block instead of leaving it empty. */
+	@Test
+	void aShortShiftIsFilledFromTheOtherBlock() {
+		List<Staff> pair = DOCTORS.subList(0, 2);
+		List<Assignment> afternoons = new ArrayList<>();
+		for (int day = 5; day <= 8; day++) {
+			for (Staff doctor : pair) {
+				afternoons.add(new Assignment(new ShiftSlot(OCTOBER.atDay(day), SHIFT_II), doctor));
+			}
+		}
+		ShiftSlot fridayMorning = new ShiftSlot(OCTOBER.atDay(9), SHIFT_I);
+		List<Constraint> block = GENERATOR.constraints(october(DOCTORS, List.of())).stream()
+				.filter(c -> WeeklyShiftBlockConstraint.ID.equals(c.id())).toList();
+
+		GenerationResult result = new GreedyRosterGenerator().generate(new GenerationRequest(
+				new Roster(OCTOBER, RosterStatus.DRAFT, afternoons), pair,
+				List.of(new OpenSlot(fridayMorning, StaffRole.DOCTOR, Post.GENERAL)), block));
+
+		assertThat(result).isInstanceOf(GenerationResult.Ok.class);
+		assertThat(((GenerationResult.Ok) result).roster().assignmentsOn(fridayMorning)).hasSize(1);
 	}
 
 	@Test

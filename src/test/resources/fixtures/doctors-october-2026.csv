@@ -1,0 +1,14 @@
+# Synthetic doctor list for October 2026: 11 made-up doctors in night-rotation order.
+# D03 has short leave (3 days, swaps nights); D05 has long leave (13 days, leaves the rotation).
+id,name,leave
+D01,Test Doctor 1,
+D02,Test Doctor 2,
+D03,Test Doctor 3,2026-10-07..2026-10-09
+D04,Test Doctor 4,
+D05,Test Doctor 5,2026-10-22..2026-11-03
+D06,Test Doctor 6,
+D07,Test Doctor 7,
+D08,Test Doctor 8,
+D09,Test Doctor 9,
+D10,Test Doctor 10,
+D11,Test Doctor 11,

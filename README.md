@@ -107,35 +107,39 @@ login with a one-time temporary password, reset password). Anyone signed in can
 change their own password on `/password`. Staff can request leave for themselves
 before any month is generated. Reception can view.
 
-## Run (prod, local Postgres)
+## Docker (TA / local deploy)
 
-There is no IITM CC account and no consent for a public host (gap 29). Run
-Postgres on the machine that will serve the app. Flyway applies
-`V1__hospital_roster.sql` and `V2__user_accounts.sql` on the first start;
-Hibernate only validates after that.
+There is no IITM CC account and no consent for a public host (gap 29). Two setups:
+
+**Single container (embedded H2, no other setup):**
+
+```bash
+docker build -t roster-gen .
+docker run --rm -p 8080:8080 roster-gen
+```
+
+If `ROSTER_DEV_PASSWORD` is unset, the startup log prints a generated password for
+the synthetic logins. Open `http://localhost:8080` and sign in as `admin`.
+
+**App + Postgres (data survives restart):**
+
+```bash
+cp .env.example .env   # set ROSTER_ADMIN_PASSWORD
+docker compose up --build
+```
+
+Flyway applies `V1__hospital_roster.sql` and `V2__user_accounts.sql` on first start.
+Stop and start again; the roster is still there (named volume `roster-pg`).
+
+Or run only Postgres from Compose and the jar on the host:
 
 ```bash
 export ROSTER_ADMIN_PASSWORD='<pick-one>'
 ./demo/run-prod.sh
 ```
 
-Or by hand:
-
-```bash
-docker compose up -d
-export ROSTER_DB_URL=jdbc:postgresql://localhost:5432/roster
-export ROSTER_DB_USER=roster
-export ROSTER_DB_PASSWORD=roster
-export ROSTER_ADMIN_PASSWORD='<pick-one>'
-./gradlew bootJar
-SPRING_PROFILES_ACTIVE=prod java -jar build/libs/roster-0.0.1-SNAPSHOT.jar
-```
-
 If any of `ROSTER_DB_URL`, `ROSTER_DB_USER`, `ROSTER_DB_PASSWORD` or
-`ROSTER_ADMIN_PASSWORD` is missing, the app refuses to start.
-
-The four synthetic logins are the ones in [Admin account](#admin-account). Log in
-as `admin` with `ROSTER_ADMIN_PASSWORD`.
+`ROSTER_ADMIN_PASSWORD` is missing in prod, the app refuses to start.
 
 ## Generate a roster from a doctor list
 

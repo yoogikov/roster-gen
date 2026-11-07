@@ -42,6 +42,7 @@ out/
 ### Local secrets (never commit) ###
 .env
 .env.*
+!.env.example
 *.local.properties
 application-local.properties
 

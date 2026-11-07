@@ -7,4 +7,6 @@ interface StaffJpaRepository extends JpaRepository<StaffEntity, String> {
 
 	List<StaffEntity> findAllByOrderByIdAsc();
 
+	List<StaffEntity> findAllByActiveTrueOrderByIdAsc();
+
 }

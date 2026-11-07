@@ -85,29 +85,32 @@ ROSTER_DEV_PASSWORD='<pick-one>' ./gradlew bootRun
 
 ## Admin account
 
-Every request needs HTTP Basic. The four synthetic logins are the same in `dev`
-and `prod`; they are not hospital staff.
+Every request needs HTTP Basic. Logins are stored in the `user_account` table.
+On start, if no admin exists, one is created from `ROSTER_ADMIN_PASSWORD` (prod) or
+`ROSTER_DEV_PASSWORD` (dev). Prod refuses to start without `ROSTER_ADMIN_PASSWORD`.
+
+`dev` also seeds reception, doctors D01/D06, and staff1/staff2 for the demo:
 
 | Username | Role | Staff id | Password |
 |---|---|---|---|
-| `admin` | ADMIN | — | `ROSTER_DEV_PASSWORD` (dev) or `ROSTER_ADMIN_PASSWORD` (prod) |
-| `reception` | RECEPTION | — | same |
-| `staff1` | STAFF | `D01` | same |
-| `staff2` | STAFF | `D06` | same |
+| `admin` | ADMIN | — | `ROSTER_DEV_PASSWORD` / `ROSTER_ADMIN_PASSWORD` |
+| `reception` | RECEPTION | — | same (dev seed only) |
+| `staff1` | STAFF | `D01` | same (dev seed only) |
+| `staff2` | STAFF | `D06` | same (dev seed only) |
 
 If `ROSTER_DEV_PASSWORD` is unset, `dev` generates a random password and prints it
-in the startup log (`ROSTER_DEV_PASSWORD not set; dev users share generated password`).
-`prod` refuses to start without `ROSTER_ADMIN_PASSWORD`.
+in the startup log.
 
-Admin can generate a month, edit cells, publish, approve or reject inbox items,
-and save rules. Staff can request leave, propose a swap of their own shifts, and
-view the published sheet. Reception can view.
+Admin manages doctors and logins on `/doctors` (add, rename, deactivate, create
+login with a one-time temporary password, reset password). Anyone signed in can
+change their own password on `/password`. Staff can request leave for themselves
+before any month is generated. Reception can view.
 
 ## Run (prod, local Postgres)
 
 There is no IITM CC account and no consent for a public host (gap 29). Run
 Postgres on the machine that will serve the app. Flyway applies
-`src/main/resources/db/migration/V1__hospital_roster.sql` on the first start;
+`V1__hospital_roster.sql` and `V2__user_accounts.sql` on the first start;
 Hibernate only validates after that.
 
 ```bash

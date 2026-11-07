@@ -63,9 +63,9 @@ Pages:
 | Path | What it is |
 |---|---|
 | `/` | Home: generate a month (admin), with optional leave lines (`id,first,last`) and holidays (blank keeps the saved ones, `none` clears) |
-| `/rosters/2026-12` | Roster sheet. Staff see it read-only |
+| `/rosters/2026-12` | Roster sheet. On a published month, staff can propose a swap or request removal of their own shift |
 | `/audit` | Audit log |
-| `/inbox` | Swap, change and leave requests |
+| `/inbox` | Open requests; staff also see My requests with state |
 | `/rules` | Rule templates |
 | `/leave` | Leave request form |
 

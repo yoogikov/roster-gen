@@ -14,4 +14,6 @@ interface LeaveRequestJpaRepository extends JpaRepository<LeaveRequestEntity, St
 	List<LeaveRequestEntity> findByStateAndFirstDayLessThanEqualAndLastDayGreaterThanEqualOrderByCreatedAtAsc(
 			RequestState state, LocalDate to, LocalDate from);
 
+	List<LeaveRequestEntity> findByStaff_IdOrderByCreatedAtDesc(String staffId);
+
 }

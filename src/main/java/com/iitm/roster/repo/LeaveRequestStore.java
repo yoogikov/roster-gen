@@ -49,4 +49,10 @@ public class LeaveRequestStore {
 				.toList();
 	}
 
+	/** Every leave request for this doctor, newest first. */
+	@Transactional(readOnly = true)
+	public List<LeaveRequest> findForStaff(String staffId) {
+		return requests.findByStaff_IdOrderByCreatedAtDesc(staffId).stream().map(LeaveRequestEntity::toDomain).toList();
+	}
+
 }

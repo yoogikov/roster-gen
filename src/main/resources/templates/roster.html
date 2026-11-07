@@ -10,6 +10,9 @@
 		td, th { border: 1px solid #ccc; padding: 0.3rem 0.5rem; }
 		td[data-edit] { cursor: pointer; }
 		.notice { background: #fff6d8; padding: 0.5rem; }
+		.forms { margin-top: 1.5rem; max-width: 36rem; }
+		.forms label { display: block; margin-top: 0.5rem; }
+		.forms select, .forms button { margin-top: 0.25rem; }
 	</style>
 </head>
 <body>
@@ -50,7 +53,45 @@
 		<input type="hidden" name="post" value="GENERAL"/>
 	</form>
 	<p th:if="${canEdit}">Click a shift cell to assign a doctor (general duty), or to take the named doctor off that shift.</p>
-	<p th:unless="${canEdit}">Read-only. Ask for a swap, or request a change of your own published shift.</p>
+
+	<div class="forms" th:if="${staffForms}">
+		<h2>Propose a swap</h2>
+		<form method="post" th:action="@{'/rosters/' + ${month} + '/swaps'}">
+			<label>Your shift
+				<select name="offered" required>
+					<option value="">—</option>
+					<option th:each="choice : ${myShifts}" th:value="${choice.value}" th:text="${choice.label}">mine</option>
+				</select>
+			</label>
+			<label>Colleague's shift
+				<select name="wanted" required>
+					<option value="">—</option>
+					<option th:each="choice : ${otherShifts}" th:value="${choice.value}" th:text="${choice.label}">other</option>
+				</select>
+			</label>
+			<button type="submit">Propose swap</button>
+		</form>
+
+		<h2>Request a change of your shift</h2>
+		<form method="post" th:action="@{'/rosters/' + ${month} + '/edits'}"
+				onsubmit="var p=document.getElementById('change-choice').value.split('|'); if(p.length!==4){return false;} document.getElementById('change-date').value=p[0]; document.getElementById('change-shift').value=p[1]; document.getElementById('change-staff').value=p[2]; document.getElementById('change-post').value=p[3];">
+			<input type="hidden" name="type" value="unassign"/>
+			<label>Take me off
+				<select id="change-choice" required>
+					<option value="">—</option>
+					<option th:each="choice : ${myShifts}" th:value="${choice.value}" th:text="${choice.label}">mine</option>
+				</select>
+			</label>
+			<input type="hidden" name="date" id="change-date"/>
+			<input type="hidden" name="shift" id="change-shift"/>
+			<input type="hidden" name="staffId" id="change-staff"/>
+			<input type="hidden" name="post" id="change-post" value="GENERAL"/>
+			<button type="submit">Request removal</button>
+		</form>
+		<p>Open swaps and leave live under Inbox → My requests.</p>
+	</div>
+
+	<p th:unless="${canEdit or staffForms}">Read-only.</p>
 </div>
 <script th:if="${canEdit}" src="/roster-grid.js"></script>
 </body>

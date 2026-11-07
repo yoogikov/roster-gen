@@ -37,4 +37,12 @@ public class ChangeRequestStore {
 				.toList();
 	}
 
+	/** Edits that name this doctor, newest first. */
+	@Transactional(readOnly = true)
+	public List<ChangeRequest> findForStaff(String staffId) {
+		return requests.findByStaffIdOrFromStaffIdOrToStaffIdOrderByCreatedAtDesc(staffId, staffId, staffId).stream()
+				.map(ChangeRequestEntity::toDomain)
+				.toList();
+	}
+
 }

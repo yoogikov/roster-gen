@@ -42,4 +42,12 @@ public class SwapRequestStore {
 		return requests.findByStateInOrderByCreatedAtAsc(open).stream().map(SwapRequestEntity::toDomain).toList();
 	}
 
+	/** Every swap that involves this doctor, newest first (including lapsed and closed). */
+	@Transactional(readOnly = true)
+	public List<SwapRequest> findForStaff(String staffId) {
+		return requests.findByOffered_Staff_IdOrWanted_Staff_IdOrderByCreatedAtDesc(staffId, staffId).stream()
+				.map(SwapRequestEntity::toDomain)
+				.toList();
+	}
+
 }

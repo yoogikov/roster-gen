@@ -9,4 +9,7 @@ interface ChangeRequestJpaRepository extends JpaRepository<ChangeRequestEntity, 
 
 	List<ChangeRequestEntity> findByStateInOrderByCreatedAtAsc(Collection<RequestState> states);
 
+	List<ChangeRequestEntity> findByStaffIdOrFromStaffIdOrToStaffIdOrderByCreatedAtDesc(String staffId,
+			String fromStaffId, String toStaffId);
+
 }

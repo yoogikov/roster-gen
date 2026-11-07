@@ -23,8 +23,8 @@ import org.springframework.test.context.DynamicPropertyRegistry;
 import org.springframework.test.context.DynamicPropertySource;
 
 /**
- * The prod profile against a real Postgres. Hibernate creates the schema for this test only;
- * a deployed prod database is still validate-only and is not migrated yet.
+ * The prod profile against a real Postgres. Flyway applies {@code V1__hospital_roster.sql}
+ * and Hibernate only validates, which is the deployed startup path.
  */
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.NONE)
 @ActiveProfiles("prod")
@@ -43,7 +43,7 @@ class ProdPostgresTest {
 		registry.add("spring.datasource.url", () -> POSTGRES.getJdbcUrl("postgres", "postgres"));
 		registry.add("spring.datasource.username", () -> "postgres");
 		registry.add("spring.datasource.password", () -> "postgres");
-		registry.add("spring.jpa.hibernate.ddl-auto", () -> "update");
+		registry.add("roster.admin-password", () -> "test-only-password");
 	}
 
 	@Test

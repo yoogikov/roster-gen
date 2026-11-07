@@ -46,10 +46,8 @@ public class RuleBook {
 	public SavedRule save(YearMonth month, RuleSpec spec) throws InvalidRuleException {
 		Objects.requireNonNull(month, "month");
 		factory.build(spec);
-		if ("weekday-staffing".equals(spec.templateId())) {
+		if ("weekday-staffing".equals(spec.templateId()) && inputs.findByMonth(month).isPresent()) {
 			applyStaffing(month, spec.params());
-		} else if (inputs.findByMonth(month).isEmpty()) {
-			throw new InvalidRuleException("no roster input for " + month);
 		}
 		SavedRule saved = new SavedRule(UUID.randomUUID().toString(), month, spec.templateId(), spec.params());
 		rules.save(saved);

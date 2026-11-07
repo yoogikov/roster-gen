@@ -1,0 +1,31 @@
+-- Reviewed Hibernate 6 / PostgreSQL create script for the prod profile.
+-- Flyway applies this once; Hibernate then only validates.
+create sequence audit_event_seq start with 1 increment by 50;
+create sequence month_input_seq start with 1 increment by 50;
+create sequence roster_seq start with 1 increment by 50;
+create table audit_event (roster_month varchar(7) not null, id bigint not null, occurred_at timestamp(6) with time zone not null, summary varchar(1000) not null, actor varchar(255) not null, primary key (id));
+create table change_request (slot_date date not null, roster_month varchar(7) not null, created_at timestamp(6) with time zone not null, from_staff_id varchar(255), id varchar(255) not null, post varchar(255) check ((post in ('WARD','CASUALTY','GENERAL'))), shift_code varchar(255) not null, staff_id varchar(255), state varchar(255) not null check ((state in ('PENDING','ACCEPTED','APPROVED','REJECTED','LAPSED'))), to_staff_id varchar(255), type varchar(255) not null, primary key (id));
+create table leave_request (first_day date not null, last_day date not null, created_at timestamp(6) with time zone not null, id varchar(255) not null, staff_id varchar(255) not null, state varchar(255) not null check ((state in ('PENDING','ACCEPTED','APPROVED','REJECTED','LAPSED'))), primary key (id));
+create table month_input (weekday_per_shift integer not null, weekend_per_shift integer not null, roster_month varchar(7) not null unique, id bigint not null, first_on_nights_id varchar(255) not null, primary key (id));
+create table month_input_doctor (list_index integer not null check ((list_index>=0)), month_input_id bigint not null, staff_id varchar(255) not null, primary key (list_index, month_input_id));
+create table month_input_holiday (holiday date not null, month_input_id bigint not null, primary key (holiday, month_input_id));
+create table month_input_leave (first_day date not null, last_day date not null, list_index integer not null check ((list_index>=0)), month_input_id bigint not null, staff_id varchar(255) not null, primary key (list_index, month_input_id));
+create table roster (roster_month varchar(7) not null unique, id bigint not null, status varchar(255) not null check ((status in ('DRAFT','PUBLISHED'))), primary key (id));
+create table roster_assignment (list_index integer not null check ((list_index>=0)), shift_length numeric(21,0) not null, shift_start time(0) not null, slot_date date not null, roster_id bigint not null, post varchar(255) not null check ((post in ('WARD','CASUALTY','GENERAL'))), shift_code varchar(255) not null, staff_id varchar(255) not null, primary key (list_index, roster_id));
+create table roster_weekly_off (list_index integer not null check ((list_index>=0)), off_date date not null, roster_id bigint not null, staff_id varchar(255) not null, primary key (list_index, roster_id));
+create table saved_rule (roster_month varchar(7) not null, params varchar(2000) not null, id varchar(255) not null, template_id varchar(255) not null, primary key (id));
+create table staff (id varchar(255) not null, name varchar(255) not null, role varchar(255) not null check ((role in ('DOCTOR','NURSE'))), primary key (id));
+create table swap_request (offered_date date not null, offered_shift_length numeric(21,0) not null, offered_shift_start time(0) not null, wanted_date date not null, wanted_shift_length numeric(21,0) not null, wanted_shift_start time(0) not null, created_at timestamp(6) with time zone not null, id varchar(255) not null, offered_post varchar(255) not null check ((offered_post in ('WARD','CASUALTY','GENERAL'))), offered_shift_code varchar(255) not null, offered_staff_id varchar(255) not null, state varchar(255) not null check ((state in ('PENDING','ACCEPTED','APPROVED','REJECTED','LAPSED'))), wanted_post varchar(255) not null check ((wanted_post in ('WARD','CASUALTY','GENERAL'))), wanted_shift_code varchar(255) not null, wanted_staff_id varchar(255) not null, primary key (id));
+alter table if exists leave_request add constraint FKikpdq792b4tfpbh3uqrfeggh2 foreign key (staff_id) references staff;
+alter table if exists month_input add constraint FK5sr7au7002mqw3tywe4n7wab1 foreign key (first_on_nights_id) references staff;
+alter table if exists month_input_doctor add constraint FKfvoa8mi1elf1wxmmq6u9aoyv5 foreign key (staff_id) references staff;
+alter table if exists month_input_doctor add constraint FKcracxodh8pd7ppo1i8omn3yjo foreign key (month_input_id) references month_input;
+alter table if exists month_input_holiday add constraint FKl1dhq4ibbhogkekdoh6appueh foreign key (month_input_id) references month_input;
+alter table if exists month_input_leave add constraint FKpj986y6lkcdg9luict53wx4r5 foreign key (staff_id) references staff;
+alter table if exists month_input_leave add constraint FKbd19ruuwygn2w91nm837imibe foreign key (month_input_id) references month_input;
+alter table if exists roster_assignment add constraint FKeok5ppxtvl3i2n8nxn9o9pj09 foreign key (staff_id) references staff;
+alter table if exists roster_assignment add constraint FKmmk17dvns0yhgdlk93xwjej28 foreign key (roster_id) references roster;
+alter table if exists roster_weekly_off add constraint FKrr095cb01b76p2g8qvn05n7hw foreign key (staff_id) references staff;
+alter table if exists roster_weekly_off add constraint FKaq65crqlwwu4vgh6rxhtpma4h foreign key (roster_id) references roster;
+alter table if exists swap_request add constraint FK2q4j9ngm7u5g68ga5y3cs7v4x foreign key (offered_staff_id) references staff;
+alter table if exists swap_request add constraint FKgaj51d7s3kn8sbo9oajq3vp45 foreign key (wanted_staff_id) references staff;

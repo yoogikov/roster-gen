@@ -24,3 +24,4 @@ Rules:
 | 2026-11-04 | [Swap state machine](2026-11-04-swap-requests.md) | Tushar | "Add swap state machine with lapse and night-ward moves" |
 | 2026-11-04 | [JSON API and mid-demo script](2026-11-04-rest-api.md) | Tushar | "Add JSON roster API, lapse job and mid-demo script" |
 | 2026-11-04 | [Roster sheet, leave and approvals](2026-11-04-phase-c.md) | Tushar | "Add the roster sheet, leave and approval requests" |
+| 2026-11-07 | [RosterJourneyTest and Postgres deploy](2026-11-07-roster-journey.md) | Tushar | "Add RosterJourneyTest covering generate, edit, swap and export" |

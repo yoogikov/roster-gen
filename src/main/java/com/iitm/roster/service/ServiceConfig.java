@@ -6,6 +6,7 @@ import com.iitm.roster.repo.MonthInputStore;
 import com.iitm.roster.scheduler.HospitalRosterGenerator;
 import java.time.Clock;
 import java.util.List;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 
@@ -14,6 +15,7 @@ public class ServiceConfig {
 
 	/** Injected rather than calling {@code Instant.now()}, so tests can fix the time. */
 	@Bean
+	@ConditionalOnMissingBean
 	Clock clock() {
 		return Clock.system(HospitalTime.ZONE);
 	}

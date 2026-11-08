@@ -138,6 +138,16 @@ class PageControllerTest {
 	}
 
 	@Test
+	void theSheetsDownloadLinksUseTheSignedInSessionNotTheBasicAuthApi() throws Exception {
+		when(query.find(JULY)).thenReturn(Optional.of(sample()));
+
+		mockMvc.perform(get("/rosters/2026-07").with(httpBasic("staff1", PASSWORD)))
+				.andExpect(content().string(org.hamcrest.Matchers.containsString("href=\"/rosters/2026-07/export?format=csv\"")))
+				.andExpect(content().string(org.hamcrest.Matchers.containsString("href=\"/rosters/2026-07/export?format=pdf\"")))
+				.andExpect(content().string(org.hamcrest.Matchers.not(org.hamcrest.Matchers.containsString("/api/rosters"))));
+	}
+
+	@Test
 	void theSheetSaysNothingAboutOwedOffsWhenNoneAre() throws Exception {
 		when(query.find(JULY)).thenReturn(Optional.of(sample()));
 

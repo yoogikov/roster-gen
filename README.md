@@ -71,7 +71,7 @@ Pages:
 | `/leave` | Leave request form |
 
 CSV and PDF downloads are on the sheet and at
-`GET /api/rosters/{month}/export?format=csv` (or `format=pdf`). The PDF is A4 landscape,
+`GET /rosters/{month}/export?format=csv` (or `format=pdf`) when signed in, or the same path under `/api` with HTTP Basic for scripts. The PDF is A4 landscape,
 one row per day, with the same columns as the CSV and weekends shaded.
 
 `demo/mid-demo.sh` drives the JSON API: generate, read, export CSV, reject a

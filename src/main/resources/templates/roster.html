@@ -22,8 +22,8 @@
 <p th:if="${missing}">No roster for this month yet.</p>
 <div th:unless="${missing}">
 	<p>Status: <span th:text="${status}">DRAFT</span>
-		<a th:href="@{'/api/rosters/' + ${month} + '/export?format=csv'}">Download CSV</a>
-		<a th:href="@{'/api/rosters/' + ${month} + '/export?format=pdf'}">Download PDF</a>
+		<a th:href="@{'/rosters/' + ${month} + '/export?format=csv'}">Download CSV</a>
+		<a th:href="@{'/rosters/' + ${month} + '/export?format=pdf'}">Download PDF</a>
 	</p>
 	<form th:if="${canEdit}" method="post" th:action="@{'/rosters/' + ${month} + '/publish'}">
 		<button type="submit">Publish</button>

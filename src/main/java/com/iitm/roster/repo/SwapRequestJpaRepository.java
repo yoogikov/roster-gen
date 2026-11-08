@@ -9,6 +9,7 @@ interface SwapRequestJpaRepository extends JpaRepository<SwapRequestEntity, Stri
 
 	List<SwapRequestEntity> findByStateInOrderByCreatedAtAsc(Collection<RequestState> states);
 
+	@SuppressWarnings("PMD.MethodNamingConventions") // Spring Data needs the underscores for the embeddable path
 	List<SwapRequestEntity> findByOffered_Staff_IdOrWanted_Staff_IdOrderByCreatedAtDesc(String offeredStaffId,
 			String wantedStaffId);
 

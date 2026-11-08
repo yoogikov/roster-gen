@@ -55,6 +55,7 @@ public final class HospitalAuthorizationPolicy implements AuthorizationPolicy {
 			case Action.GenerateRoster() -> generate(actor, target);
 			case Action.PublishRoster() -> adminOnly(actor, "only an admin can publish a roster");
 			case Action.EditShift edit -> edit(actor, edit, target);
+			case Action.EditWeeklyOff weeklyOff -> editWeeklyOff(actor, weeklyOff);
 			case Action.ProposeSwap propose -> propose(actor, propose, target);
 			case Action.AcceptSwap accept -> isStaff(actor, accept.request().wanted().staff().id())
 					? ALLOW
@@ -91,6 +92,16 @@ public final class HospitalAuthorizationPolicy implements AuthorizationPolicy {
 		return isOnlyOwnShifts(actor, edit.staffIds())
 				? ADMIN_APPROVAL
 				: new Decision.Deny("staff can only change their own shifts; ask for a swap instead");
+	}
+
+	private Decision editWeeklyOff(Actor actor, Action.EditWeeklyOff weeklyOff) {
+		if (actor.role() != Role.ADMIN) {
+			return new Decision.Deny("only an admin can move a weekly off");
+		}
+		if (isPast(weeklyOff.fromDate()) || isPast(weeklyOff.toDate())) {
+			return new Decision.Deny("only an admin can change a past date");
+		}
+		return ALLOW;
 	}
 
 	private Decision propose(Actor actor, Action.ProposeSwap propose, Roster target) {

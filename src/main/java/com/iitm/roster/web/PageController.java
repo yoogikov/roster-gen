@@ -174,10 +174,33 @@ public class PageController {
 			YearMonth yearMonth = YearMonth.parse(month);
 			Roster roster = query.find(yearMonth).orElseThrow(() -> new IllegalArgumentException("no roster for " + month));
 			Actor actor = current.get();
-			Decision decision = policy.may(actor, new Action.EditShift(command.slot(), body.staffIds()), roster);
+			Decision decision = policy.may(actor, new Action.EditShift(body.slot(), body.staffIds()), roster);
 			notice = switch (decision) {
 				case Decision.Allow() -> applied(edits.applyEdit(command, actor));
 				case Decision.RequiresApproval needs -> needs.approver() + ": " + filed(changes.file(command, actor));
+				case Decision.Deny deny -> deny.reason();
+			};
+		} catch (RuntimeException ex) {
+			notice = ex.getMessage();
+		}
+		roster(month, model);
+		model.addAttribute("notice", notice);
+		return "roster";
+	}
+
+	@PostMapping("/rosters/{month}/weekly-offs")
+	String moveWeeklyOff(@PathVariable String month, @RequestParam String staffId, @RequestParam LocalDate fromDate,
+			@RequestParam LocalDate toDate, Model model) {
+		String notice;
+		try {
+			YearMonth yearMonth = YearMonth.parse(month);
+			Roster roster = query.find(yearMonth).orElseThrow(() -> new IllegalArgumentException("no roster for " + month));
+			Actor actor = current.get();
+			EditCommand command = new EditCommand.MoveWeeklyOff(fromDate, staffId, toDate);
+			Decision decision = policy.may(actor, new Action.EditWeeklyOff(fromDate, toDate, staffId), roster);
+			notice = switch (decision) {
+				case Decision.Allow() -> applied(edits.applyEdit(command, actor));
+				case Decision.RequiresApproval needs -> "needs " + needs.approver() + " approval";
 				case Decision.Deny deny -> deny.reason();
 			};
 		} catch (RuntimeException ex) {
@@ -320,7 +343,11 @@ public class PageController {
 	String requestLeave(@RequestParam String staffId, @RequestParam LocalDate firstDay, @RequestParam LocalDate lastDay,
 			Model model) {
 		model.addAttribute("staffId", staffId);
-		model.addAttribute("notice", text(leaves.propose(staffId, firstDay, lastDay, current.get())));
+		try {
+			model.addAttribute("notice", text(leaves.propose(staffId, firstDay, lastDay, current.get())));
+		} catch (RuntimeException ex) {
+			model.addAttribute("notice", ex.getMessage());
+		}
 		return "leave";
 	}
 

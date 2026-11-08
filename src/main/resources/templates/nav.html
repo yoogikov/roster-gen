@@ -9,6 +9,9 @@
 	<a href="/rules">Rules</a>
 	<a href="/leave">Leave</a>
 	<a href="/password">Password</a>
+	<form th:action="@{/logout}" method="post" style="display:inline">
+		<button type="submit">Sign out</button>
+	</form>
 </nav>
 </body>
 </html>

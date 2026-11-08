@@ -15,3 +15,4 @@ submission; the ones below are Tushar's later tasks that landed after that.
 | 2026-11-07 | [README handoff](2026-11-07-handoff.md) | Tushar | "Document install, run and admin setup for the handoff" |
 | 2026-11-07 | [Doctor accounts](2026-11-07-doctor-accounts.md) | Tushar | "Add doctor directory and per-doctor logins" |
 | 2026-11-07 | [Staff swap and change forms](2026-11-07-staff-swap-form.md) | Tushar | "Add staff swap and change forms on the sheet" |
+| 2026-11-07 | [Sheet fixes](2026-11-07-sheet-fixes.md) | Tushar | "Fix admin edit, weekly off, notices and logout" |

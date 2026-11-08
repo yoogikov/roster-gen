@@ -100,7 +100,7 @@ public class RosterController {
 				.orElseThrow(() -> new IllegalArgumentException("no roster for " + yearMonth));
 		Actor actor = current.get();
 		EditCommand command = body.toCommand();
-		Decision decision = policy.may(actor, new Action.EditShift(command.slot(), body.staffIds()), roster);
+		Decision decision = policy.may(actor, new Action.EditShift(body.slot(), body.staffIds()), roster);
 		if (decision instanceof Decision.RequiresApproval) {
 			return filed(changes.file(command, actor));
 		}

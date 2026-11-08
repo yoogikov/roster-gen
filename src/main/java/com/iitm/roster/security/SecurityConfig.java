@@ -2,6 +2,7 @@ package com.iitm.roster.security;
 
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.core.annotation.Order;
 import org.springframework.security.config.Customizer;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configurers.AbstractHttpConfigurer;
@@ -12,22 +13,44 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.web.SecurityFilterChain;
 
 /**
- * HTTP security for the JSON API: every request must authenticate with HTTP Basic,
- * and no session is kept between requests. Role checks per action come from
- * {@code AuthorizationPolicy}, not from URL patterns here.
+ * Two chains: the JSON API stays HTTP Basic and stateless (demo script, curl);
+ * browser pages use form login so a shared PC can sign out. Role checks per action
+ * still come from {@code AuthorizationPolicy}.
  */
 @Configuration
 @EnableWebSecurity
 public class SecurityConfig {
 
 	@Bean
-	SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
+	@Order(1)
+	SecurityFilterChain apiSecurity(HttpSecurity http) throws Exception {
 		http
+				.securityMatcher("/api/**")
 				.authorizeHttpRequests(auth -> auth.anyRequest().authenticated())
 				.httpBasic(Customizer.withDefaults())
-				// Stateless API: no session cookie for a CSRF token to protect. The demo script sends POSTs with curl.
 				.csrf(AbstractHttpConfigurer::disable)
 				.sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS));
+		return http.build();
+	}
+
+	@Bean
+	@Order(2)
+	SecurityFilterChain pageSecurity(HttpSecurity http) throws Exception {
+		http
+				.authorizeHttpRequests(auth -> auth
+						.requestMatchers("/login").permitAll()
+						.anyRequest().authenticated())
+				.formLogin(form -> form
+						.loginPage("/login")
+						.defaultSuccessUrl("/", true)
+						.permitAll())
+				.httpBasic(Customizer.withDefaults())
+				.logout(logout -> logout
+						.logoutSuccessUrl("/login?logout")
+						.permitAll())
+				// Sheet forms and mid-demo-style page posts have no CSRF token.
+				.csrf(AbstractHttpConfigurer::disable)
+				.sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.IF_REQUIRED));
 		return http.build();
 	}
 

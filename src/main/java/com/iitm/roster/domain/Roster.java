@@ -94,6 +94,15 @@ public record Roster(YearMonth month, RosterStatus status, List<Assignment> assi
 		return new Roster(month, status, assignments, changed);
 	}
 
+	/** A copy without {@code off}; throws if it is not in this roster. */
+	public Roster withoutWeeklyOff(DayOff off) {
+		List<DayOff> changed = new ArrayList<>(weeklyOffs);
+		if (!changed.remove(off)) {
+			throw new IllegalArgumentException("not in roster: " + off);
+		}
+		return new Roster(month, status, assignments, changed);
+	}
+
 	/** True if {@code staff} has a weekly off on {@code date}. */
 	public boolean hasWeeklyOff(Staff staff, LocalDate date) {
 		return weeklyOffs.contains(new DayOff(staff, date));

@@ -153,6 +153,8 @@ class PageControllerTest {
 		mockMvc.perform(get("/rosters/2026-07").with(httpBasic("admin", PASSWORD)))
 				.andExpect(status().isOk())
 				.andExpect(content().string(org.hamcrest.Matchers.containsString("id=\"edit-form\"")))
+				.andExpect(content().string(org.hamcrest.Matchers.containsString("name=\"post\"")))
+				.andExpect(content().string(org.hamcrest.Matchers.containsString("Move a weekly off")))
 				.andExpect(content().string(org.hamcrest.Matchers.containsString("roster-grid.js")));
 	}
 

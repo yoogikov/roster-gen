@@ -4,6 +4,7 @@ import com.iitm.roster.constraints.Constraint;
 import com.iitm.roster.constraints.MinStaffingConstraint;
 import com.iitm.roster.constraints.NightIncludesMorningWardConstraint;
 import com.iitm.roster.constraints.NoLeaveConflictConstraint;
+import com.iitm.roster.constraints.PostBalanceConstraint;
 import com.iitm.roster.constraints.PostCoverageConstraint;
 import com.iitm.roster.constraints.PostDutyOffConstraint;
 import com.iitm.roster.constraints.Severity;
@@ -84,18 +85,23 @@ public final class HospitalRosterGenerator {
 					.withAssignment(new Assignment(new ShiftSlot(day, morning), doctor, Post.WARD));
 		}
 
-		GenerationRequest request = new GenerationRequest(start, input.doctors(), openSlots(start, dayShifts), constraints);
+		// Duties are shared out afterwards: counting them while filling would pull candidates away
+		// from whoever has the fewest shifts, and evening out total shifts comes first.
+		GenerationRequest request = new GenerationRequest(start, input.doctors(), openSlots(start, dayShifts), fillingConstraints(input));
 		GenerationResult result = new GreedyRosterGenerator().generate(request);
-		if (unplannedNights.isEmpty()) {
-			return result;
-		}
 		List<ShiftSlot> unfilled = new ArrayList<>(unplannedNights);
-		Roster roster;
+		Roster filled;
 		if (result instanceof GenerationResult.Infeasible infeasible) {
 			unfilled.addAll(infeasible.unfilled());
-			roster = infeasible.partial();
+			filled = infeasible.partial();
 		} else {
-			roster = ((GenerationResult.Ok) result).roster();
+			filled = ((GenerationResult.Ok) result).roster();
+		}
+		List<Constraint> hard = constraints.stream().filter(c -> c.severity() == Severity.HARD).toList();
+		List<Constraint> soft = constraints.stream().filter(c -> c.severity() == Severity.SOFT).toList();
+		Roster roster = SoftRepair.improve(filled, hard, soft);
+		if (unfilled.isEmpty()) {
+			return new GenerationResult.Ok(roster, soft.stream().mapToInt(c -> c.penalty(roster)).sum());
 		}
 		return new GenerationResult.Infeasible(roster, unfilled);
 	}
@@ -115,7 +121,20 @@ public final class HospitalRosterGenerator {
 				new PostDutyOffConstraint(night, Severity.HARD, input.carriedIn()),
 				new NoLeaveConflictConstraint(input.leaves(), Severity.HARD),
 				new WeeklyOffConstraint(night, Severity.HARD, input.carriedIn()),
-				new WeeklyShiftBlockConstraint(morning, afternoon, Severity.SOFT));
+				new WeeklyShiftBlockConstraint(morning, afternoon, Severity.SOFT),
+				new PostBalanceConstraint(sharedDuties(), input.doctors(), input.leaves(), Severity.SOFT));
+	}
+
+	/** The rules used while filling the roster: all of them except sharing out the duties. */
+	List<Constraint> fillingConstraints(MonthInput input) {
+		return constraints(input).stream().filter(c -> !PostBalanceConstraint.ID.equals(c.id())).toList();
+	}
+
+	/** Shift I ward is not here: the night doctor always has it, so the night rotation shares it. */
+	private List<PostBalanceConstraint.Duty> sharedDuties() {
+		return List.of(new PostBalanceConstraint.Duty(morning, Post.CASUALTY),
+				new PostBalanceConstraint.Duty(afternoon, Post.WARD),
+				new PostBalanceConstraint.Duty(afternoon, Post.CASUALTY));
 	}
 
 	private List<StaffingRequirement> perShift(int minimum) {

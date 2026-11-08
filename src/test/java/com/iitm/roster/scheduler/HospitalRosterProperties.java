@@ -6,6 +6,8 @@ import static com.iitm.roster.domain.StandardShifts.SHIFT_II;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import com.iitm.roster.constraints.Constraint;
+import com.iitm.roster.constraints.PostBalanceConstraint;
+import com.iitm.roster.constraints.WeeklyShiftBlockConstraint;
 import com.iitm.roster.constraints.Severity;
 import com.iitm.roster.constraints.WeeklyOffConstraint;
 import com.iitm.roster.domain.Assignment;
@@ -70,6 +72,34 @@ class HospitalRosterProperties {
 				if (constraint.severity() == Severity.HARD) {
 					assertThat(constraint.check(roster)).as(constraint.id()).isEmpty();
 				}
+			}
+		}
+	}
+
+	/** Sharing out duties must not disturb total shifts: counting duties while filling widened them. */
+	@Example
+	void dutiesAreOnlySharedOutAfterTheRosterIsFilled() {
+		MonthInput input = input(0, 11, 0, List.of(), List.of(), -1);
+
+		assertThat(generator.fillingConstraints(input)).extracting(Constraint::id)
+				.doesNotContain(PostBalanceConstraint.ID).contains(WeeklyShiftBlockConstraint.ID);
+		assertThat(generator.constraints(input)).extracting(Constraint::id).contains(PostBalanceConstraint.ID);
+	}
+
+	/** With nobody on leave, a month's duties stay within three of each other per doctor. */
+	@Property(tries = 12)
+	void dutiesAreSharedOutFairly(@ForAll @IntRange(min = 0, max = 35) int monthOffset, @ForAll @IntRange(min = 0, max = 10) int firstIndex) {
+		MonthInput input = input(monthOffset, 11, firstIndex, List.of(), List.of(), -1);
+		Roster roster = roster(generator.generate(input));
+
+		for (ShiftSlot duty : List.of(new ShiftSlot(input.month().atDay(1), SHIFT_I), new ShiftSlot(input.month().atDay(1), SHIFT_II))) {
+			for (Post post : duty.shift().equals(SHIFT_I) ? List.of(Post.CASUALTY) : List.of(Post.WARD, Post.CASUALTY)) {
+				List<Long> counts = input.doctors().stream()
+						.map(doctor -> roster.assignmentsFor(doctor).stream()
+								.filter(a -> a.post() == post && a.slot().shift().equals(duty.shift())).count())
+						.toList();
+				assertThat(java.util.Collections.max(counts) - java.util.Collections.min(counts))
+						.as("%s %s", duty.shift().code(), post).isLessThanOrEqualTo(3);
 			}
 		}
 	}

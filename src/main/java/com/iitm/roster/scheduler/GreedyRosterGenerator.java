@@ -35,7 +35,7 @@ import java.util.Set;
  *   <li>A slot with no candidate is left unfilled and reported in {@code Infeasible}.
  * </ol>
  *
- * <p>No repair pass yet: once placed, an assignment is never moved.
+ * <p>Once placed, an assignment is not moved here; {@link SoftRepair} can exchange duties afterwards.
  */
 public final class GreedyRosterGenerator implements RosterGenerator {
 

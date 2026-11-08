@@ -126,6 +126,7 @@ public class PageController {
 			MonthInput input = new MonthInput(yearMonth, rostered, first, parseLeave(leave, rostered),
 					calendar(holidays, yearMonth), weekday, weekend);
 			GenerationResult result = generation.generate(input, current.get());
+			model.addAttribute("generatedMonth", yearMonth.toString());
 			model.addAttribute("notice", switch (result) {
 				case GenerationResult.Ok ok -> "generated " + month + ", soft penalty " + ok.softPenalty();
 				case GenerationResult.Infeasible infeasible -> month + " left " + infeasible.unfilled().size() + " slots unfilled";

@@ -10,6 +10,7 @@ import com.iitm.roster.constraints.PostDutyOffConstraint;
 import com.iitm.roster.constraints.Violation;
 import com.iitm.roster.domain.Actor;
 import com.iitm.roster.domain.Assignment;
+import com.iitm.roster.domain.DayOff;
 import com.iitm.roster.domain.HospitalCalendar;
 import com.iitm.roster.domain.Leave;
 import com.iitm.roster.domain.Post;
@@ -197,15 +198,12 @@ class RosterGenerationServiceTest {
 	/**
 	 * Found by {@code HospitalRosterProperties} (shrunk): 10 doctors, February 2026, one leave at the
 	 * end of the last, six-day week. That week has room for only 9 weekly offs, so one doctor gets
-	 * none. Every slot is still filled, so the result is Ok; the broken rule must be reported anyway.
+	 * none. That off is owed to March, not a broken rule.
 	 */
 	@Test
-	void aHardRuleTheMonthCannotKeepIsReportedEvenWhenEverySlotIsFilled() {
+	void aWeeklyOffWithNoRoomIsOwedAndRecordedNotBroken() {
 		YearMonth february = YearMonth.of(2026, 2);
-		List<Staff> doctors = new ArrayList<>();
-		for (int i = 1; i <= 10; i++) {
-			doctors.add(new Staff(String.format("D%02d", i), "Test Doctor " + i, StaffRole.DOCTOR));
-		}
+		List<Staff> doctors = doctors(10);
 		MonthInput input = new MonthInput(february, doctors, doctors.get(0),
 				List.of(new Leave(doctors.get(5), february.atDay(27), february.atDay(28))),
 				new HospitalCalendar(Set.of(february.atDay(2))), 4, 2);
@@ -213,10 +211,83 @@ class RosterGenerationServiceTest {
 		GenerationResult result = generation.generate(input, ADMIN);
 
 		assertThat(result).isInstanceOf(GenerationResult.Ok.class);
-		assertThat(generation.brokenRules(february)).extracting(Violation::message)
-				.containsExactly("Test Doctor 10 has no weekly off in the week of 2026-02-23");
-		assertThat(audit.findAll()).singleElement()
-				.satisfies(event -> assertThat(event.summary()).endsWith("; 1 HARD rule broken"));
+		assertThat(generation.brokenRules(february)).isEmpty();
+		assertThat(generation.owedOffsAfter(february)).containsExactly(doctors.get(9));
+		assertThat(audit.findAll()).singleElement().satisfies(event -> assertThat(event.summary())
+				.endsWith("; weekly offs owed to next month: Test Doctor 10"));
+	}
+
+	/** December 2026 ends on a Thursday: that four-day week has room for 8 of 11 weekly offs. */
+	@Test
+	void offsThatDoNotFitAtTheEndOfAMonthAreGivenAtTheStartOfTheNext() {
+		YearMonth december = YearMonth.of(2026, 12);
+		YearMonth january = december.plusMonths(1);
+		List<Staff> doctors = doctors(11);
+		generation.generate(month(december, doctors), ADMIN);
+		List<Staff> owed = generation.owedOffsAfter(december);
+		assertThat(owed).hasSize(3);
+		assertThat(generation.brokenRules(december)).isEmpty();
+
+		generation.generate(month(january, doctors), ADMIN);
+
+		Roster roster = rosters.findByMonth(january).orElseThrow();
+		assertThat(roster.weeklyOffs()).filteredOn(off -> off.date().isBefore(january.atDay(4)))
+				.extracting(DayOff::staff).containsExactlyInAnyOrderElementsOf(owed);
+		assertThat(generation.owedOffsAfter(january)).isEmpty();
+		assertThat(generation.brokenRules(january)).isEmpty();
+	}
+
+	@Test
+	void whatIsOwedIsReadAgainFromTheRostersWhenAMonthIsGeneratedAgain() {
+		YearMonth december = YearMonth.of(2026, 12);
+		YearMonth january = december.plusMonths(1);
+		List<Staff> doctors = doctors(11);
+		generation.generate(month(december, doctors), ADMIN);
+		generation.generate(month(january, doctors), ADMIN);
+		Roster first = rosters.findByMonth(january).orElseThrow();
+
+		generation.regenerate(january, ADMIN);
+
+		assertThat(rosters.findByMonth(january).orElseThrow().weeklyOffs()).isEqualTo(first.weeklyOffs());
+	}
+
+	@Test
+	void whatNoMonthCouldGiveKeepsAddingUpAcrossMonths() {
+		YearMonth december = YearMonth.of(2026, 12);
+		YearMonth january = december.plusMonths(1);
+		List<Staff> doctors = doctors(1);
+		staff.save(doctors.get(0));
+		for (YearMonth month : List.of(december, january)) {
+			inputs.save(MonthInputs.toStored(month(month, doctors)));
+			rosters.save(Roster.empty(month));
+		}
+
+		// Five counted weeks in December and four in January, with no offs at all.
+		assertThat(generation.owedOffsAfter(january)).hasSize(9);
+	}
+
+	@Test
+	void aMonthWithNoRosterBeforeItIsOwedNothing() {
+		List<Staff> doctors = doctors(11);
+		YearMonth january = YearMonth.of(2027, 1);
+
+		generation.generate(month(january, doctors), ADMIN);
+
+		assertThat(rosters.findByMonth(january).orElseThrow().weeklyOffs())
+				.noneMatch(off -> off.date().isBefore(january.atDay(4)));
+		assertThat(generation.owedOffsAfter(YearMonth.of(2030, 1))).isEmpty();
+	}
+
+	private static List<Staff> doctors(int count) {
+		List<Staff> doctors = new ArrayList<>();
+		for (int i = 1; i <= count; i++) {
+			doctors.add(new Staff(String.format("D%02d", i), "Test Doctor " + i, StaffRole.DOCTOR));
+		}
+		return doctors;
+	}
+
+	private static MonthInput month(YearMonth month, List<Staff> doctors) {
+		return new MonthInput(month, doctors, doctors.get(0), List.of(), HospitalCalendar.noHolidays(), 4, 2);
 	}
 
 	@Test

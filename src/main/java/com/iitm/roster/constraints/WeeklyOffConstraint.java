@@ -3,27 +3,25 @@ package com.iitm.roster.constraints;
 import com.iitm.roster.domain.Assignment;
 import com.iitm.roster.domain.DayOff;
 import com.iitm.roster.domain.HospitalCalendar;
-import com.iitm.roster.domain.Leave;
 import com.iitm.roster.domain.Roster;
 import com.iitm.roster.domain.ShiftType;
-import com.iitm.roster.domain.Staff;
 import java.time.LocalDate;
 import java.util.ArrayList;
-import java.util.HashSet;
-import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Objects;
-import java.util.Set;
 
 /**
  * Weekly offs, as recorded in the roster:
  * <ul>
  *   <li>nobody works on their own weekly off;
- *   <li>a weekly off is not the post-duty-off day after a night (they may be back to back);
- *   <li>everyone on the roster has one in every week that has at least
- *       {@value #MIN_DAYS_IN_MONTH} days in this month, unless they are on leave for all of
- *       those days. A shorter week at the start or end belongs to the neighbouring month.
+ *   <li>a weekly off is not the post-duty-off day after a night (they may be back to back),
+ *       including a night carried in from the last day of the month before.
  * </ul>
+ *
+ * <p>Going without an off is not a violation. It is an off the doctor is owed, and the next month
+ * gives it (see {@code OwedOffs}). {@link #countedWeeks} says which weeks entitle a doctor to one:
+ * those with at least {@value #MIN_DAYS_IN_MONTH} days in this month. A shorter week at the start
+ * or end belongs to the neighbouring month.
  */
 public final class WeeklyOffConstraint implements Constraint {
 
@@ -31,13 +29,18 @@ public final class WeeklyOffConstraint implements Constraint {
 	public static final int MIN_DAYS_IN_MONTH = 4;
 
 	private final ShiftType night;
-	private final List<Leave> leaves;
 	private final Severity severity;
+	private final List<Assignment> carriedIn;
 
-	public WeeklyOffConstraint(ShiftType night, List<Leave> leaves, Severity severity) {
+	public WeeklyOffConstraint(ShiftType night, Severity severity) {
+		this(night, severity, List.of());
+	}
+
+	/** @param carriedIn assignments from the month before; only its nights matter here */
+	public WeeklyOffConstraint(ShiftType night, Severity severity, List<Assignment> carriedIn) {
 		this.night = Objects.requireNonNull(night, "night");
-		this.leaves = List.copyOf(leaves);
 		this.severity = Objects.requireNonNull(severity, "severity");
+		this.carriedIn = List.copyOf(carriedIn);
 	}
 
 	@Override
@@ -54,9 +57,10 @@ public final class WeeklyOffConstraint implements Constraint {
 	public List<Violation> check(Roster roster) {
 		List<Violation> violations = new ArrayList<>();
 		RosterIndex index = new RosterIndex(roster);
-		Set<DayOff> offs = new HashSet<>(roster.weeklyOffs());
 		for (DayOff off : roster.weeklyOffs()) {
-			for (Assignment assignment : index.of(off.staff())) {
+			List<Assignment> duties = new ArrayList<>(index.of(off.staff()));
+			carriedIn.stream().filter(a -> a.staff().equals(off.staff())).forEach(duties::add);
+			for (Assignment assignment : duties) {
 				if (assignment.slot().date().equals(off.date())) {
 					violations.add(new Violation(ID, severity, off.date(),
 							off.staff().name() + " is rostered on their weekly off"));
@@ -64,15 +68,6 @@ public final class WeeklyOffConstraint implements Constraint {
 				if (assignment.slot().shift().equals(night) && assignment.slot().date().plusDays(1).equals(off.date())) {
 					violations.add(new Violation(ID, severity, off.date(),
 							off.staff().name() + "'s weekly off falls on their post-duty off"));
-				}
-			}
-		}
-		for (List<LocalDate> week : countedWeeks(roster)) {
-			for (Staff staff : staffOn(roster)) {
-				boolean hasOff = week.stream().anyMatch(day -> offs.contains(new DayOff(staff, day)));
-				if (!hasOff && !onLeaveAllOf(staff, week)) {
-					violations.add(new Violation(ID, severity, week.get(0),
-							staff.name() + " has no weekly off in the week of " + HospitalCalendar.weekStart(week.get(0))));
 				}
 			}
 		}
@@ -98,16 +93,6 @@ public final class WeeklyOffConstraint implements Constraint {
 		if (week.size() >= MIN_DAYS_IN_MONTH) {
 			weeks.add(List.copyOf(week));
 		}
-	}
-
-	private static Set<Staff> staffOn(Roster roster) {
-		Set<Staff> staff = new LinkedHashSet<>();
-		roster.assignments().forEach(a -> staff.add(a.staff()));
-		return staff;
-	}
-
-	private boolean onLeaveAllOf(Staff staff, List<LocalDate> days) {
-		return days.stream().allMatch(day -> leaves.stream().anyMatch(l -> l.staff().equals(staff) && l.covers(day)));
 	}
 
 	@Override

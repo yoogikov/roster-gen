@@ -52,7 +52,7 @@ public class ServiceConfig {
 	ConstraintSource constraintSource(MonthInputStore inputs, RosterStore rosters, HospitalRosterGenerator generator) {
 		return month -> inputs.findByMonth(month)
 				.map(MonthInputs::fromStored)
-				.map(input -> MonthInputs.withCarriedIn(input, rosters, generator.night()))
+				.map(input -> MonthInputs.withCarriedIn(input, rosters, inputs, generator.night()))
 				.map(generator::constraints)
 				.orElse(List.of());
 	}

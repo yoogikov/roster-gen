@@ -133,6 +133,12 @@ If any of `ROSTER_DB_URL`, `ROSTER_DB_USER`, `ROSTER_DB_PASSWORD` or
 The four synthetic logins are the ones in [Admin account](#admin-account). Log in
 as `admin` with `ROSTER_ADMIN_PASSWORD`.
 
+## Weekly offs that do not fit
+
+A doctor who cannot get a weekly off in a week, because the week has no room, is owed one.
+The Generate result and the audit log name who is owed, and generating the next month gives
+each owed off as an extra on the earliest day with room. An off no day can take stays owed.
+
 ## Generate a roster from a doctor list
 
 No app, login or database needed. The input is a CSV of doctors in night-rotation order,

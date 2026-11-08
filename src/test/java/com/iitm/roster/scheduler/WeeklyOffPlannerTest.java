@@ -42,6 +42,55 @@ class WeeklyOffPlannerTest {
 	}
 
 	@Test
+	void anOwedOffGoesOnTheEarliestDayWithRoomOnTopOfTheWeeksOwn() {
+		List<Staff> doctors = doctors(7);
+		YearMonth january = YearMonth.of(2027, 1);
+		Staff owed = doctors.get(0);
+
+		List<DayOff> offs = planner(2).plan(january, doctors, Map.of(), List.of(), List.of(owed));
+
+		// Fri 1 - Sun 3 is too short to count, so the only off there is the owed one.
+		assertThat(offs.stream().filter(o -> o.date().isBefore(january.atDay(4)))).containsExactly(new DayOff(owed, january.atDay(1)));
+		assertThat(offsOf(offs, owed)).hasSize(5);
+		assertThat(offsOf(offs, doctors.get(1))).hasSize(4);
+	}
+
+	@Test
+	void anOwedOffSkipsDaysWithNoRoomAndTheDayAfterLastMonthsFinalNight() {
+		List<Staff> doctors = doctors(5);
+		YearMonth january = YearMonth.of(2027, 1);
+		Staff owed = doctors.get(0);
+		Map<LocalDate, Staff> nights = Map.of(january.atDay(1).minusDays(1), owed);
+
+		// Four doctors work the 1st's two shifts; one is post-duty off, so it has no doctor to spare.
+		List<DayOff> offs = planner(2).plan(january, doctors, nights, List.of(), List.of(owed));
+
+		assertThat(offsOf(offs, owed)).doesNotContain(new DayOff(owed, january.atDay(1)));
+	}
+
+	@Test
+	void aDoctorOwedTwoGetsTwoSeparateDaysAndNeverTwoOnOne() {
+		List<Staff> doctors = doctors(7);
+		YearMonth january = YearMonth.of(2027, 1);
+		Staff owed = doctors.get(0);
+
+		List<DayOff> offs = planner(2).plan(january, doctors, Map.of(), List.of(), List.of(owed, owed));
+
+		assertThat(offs).doesNotHaveDuplicates();
+		assertThat(offsOf(offs, owed)).hasSize(6);
+	}
+
+	@Test
+	void anOwedOffNoDayCanTakeIsLeftOff() {
+		List<Staff> doctors = doctors(4);
+		YearMonth january = YearMonth.of(2027, 1);
+
+		List<DayOff> offs = planner(2).plan(january, doctors, Map.of(), List.of(), List.of(doctors.get(0)));
+
+		assertThat(offs).isEmpty();
+	}
+
+	@Test
 	void plentyOfDoctorsAllGetAWeekendDayEveryWeek() {
 		List<Staff> doctors = doctors(10);
 

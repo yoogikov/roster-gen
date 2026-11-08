@@ -18,9 +18,12 @@ import java.util.Objects;
  * @param carriedIn assignments from the end of the month before that this month's rules must see,
  *        such as the night of its last day, whose doctor is post-duty off on the 1st. Not stored
  *        with the input: it is read from the previous month's roster each time.
+ * @param owedOffs weekly offs doctors are owed from earlier months, given as extras this month; a
+ *        doctor owed two appears twice. Not stored either: worked out from the earlier rosters.
  */
 public record MonthInput(YearMonth month, List<Staff> doctors, Staff firstOnNights, List<Leave> leaves,
-		HospitalCalendar calendar, int weekdayPerShift, int weekendPerShift, List<Assignment> carriedIn) {
+		HospitalCalendar calendar, int weekdayPerShift, int weekendPerShift, List<Assignment> carriedIn,
+		List<Staff> owedOffs) {
 
 	/** The hospital's minimum doctors on each day shift on a weekday. */
 	public static final int WEEKDAY_PER_SHIFT = 4;
@@ -35,6 +38,7 @@ public record MonthInput(YearMonth month, List<Staff> doctors, Staff firstOnNigh
 		leaves = List.copyOf(leaves);
 		// Missing from a JSON request body (clients never send it; the service fills it in), so null means none.
 		carriedIn = carriedIn == null ? List.of() : List.copyOf(carriedIn);
+		owedOffs = owedOffs == null ? List.of() : List.copyOf(owedOffs);
 		if (weekdayPerShift < 2 || weekendPerShift < 2) {
 			throw new IllegalArgumentException("each day shift needs at least a ward and a casualty doctor");
 		}
@@ -43,13 +47,19 @@ public record MonthInput(YearMonth month, List<Staff> doctors, Staff firstOnNigh
 	/** A month with nothing carried in from the month before. */
 	public MonthInput(YearMonth month, List<Staff> doctors, Staff firstOnNights, List<Leave> leaves,
 			HospitalCalendar calendar, int weekdayPerShift, int weekendPerShift) {
-		this(month, doctors, firstOnNights, leaves, calendar, weekdayPerShift, weekendPerShift, List.of());
+		this(month, doctors, firstOnNights, leaves, calendar, weekdayPerShift, weekendPerShift, List.of(), List.of());
 	}
 
 	/** This input with {@code assignments} carried in from the month before, replacing any already there. */
 	public MonthInput withCarriedIn(List<Assignment> assignments) {
 		return new MonthInput(month, doctors, firstOnNights, leaves, calendar, weekdayPerShift, weekendPerShift,
-				assignments);
+				assignments, owedOffs);
+	}
+
+	/** This input owing {@code offs} from earlier months, replacing any already there. */
+	public MonthInput withOwedOffs(List<Staff> offs) {
+		return new MonthInput(month, doctors, firstOnNights, leaves, calendar, weekdayPerShift, weekendPerShift,
+				carriedIn, offs);
 	}
 
 	/**

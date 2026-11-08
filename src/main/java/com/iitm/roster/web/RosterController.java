@@ -7,6 +7,7 @@ import com.iitm.roster.export.Format;
 import com.iitm.roster.requests.ChangeLifecycle;
 import com.iitm.roster.requests.ChangeResult;
 import com.iitm.roster.scheduler.GenerationResult;
+import com.iitm.roster.domain.Staff;
 import com.iitm.roster.scheduler.MonthInput;
 import com.iitm.roster.security.Action;
 import com.iitm.roster.security.AuthorizationPolicy;
@@ -82,9 +83,10 @@ public class RosterController {
 		List<String> broken = generation.brokenRules(input.month()).stream()
 				.map(violation -> violation.constraintId() + ": " + violation.message())
 				.toList();
+		List<String> owedOffs = generation.owedOffsAfter(input.month()).stream().map(Staff::name).toList();
 		return ResponseEntity.ok(switch (result) {
-			case GenerationResult.Ok ok -> new Generated("ok", ok.softPenalty(), 0, broken);
-			case GenerationResult.Infeasible infeasible -> new Generated("infeasible", null, infeasible.unfilled().size(), broken);
+			case GenerationResult.Ok ok -> new Generated("ok", ok.softPenalty(), 0, broken, owedOffs);
+			case GenerationResult.Infeasible infeasible -> new Generated("infeasible", null, infeasible.unfilled().size(), broken, owedOffs);
 		});
 	}
 
@@ -170,7 +172,7 @@ public class RosterController {
 	}
 
 	/** What generate did. {@code softPenalty} is set only when every slot was filled. */
-	public record Generated(String outcome, Integer softPenalty, int unfilled, List<String> broken) {
+	public record Generated(String outcome, Integer softPenalty, int unfilled, List<String> broken, List<String> owedOffs) {
 
 		public Generated {
 			broken = List.copyOf(broken);

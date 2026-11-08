@@ -12,6 +12,7 @@ import com.iitm.roster.domain.Assignment;
 import com.iitm.roster.domain.HospitalCalendar;
 import com.iitm.roster.domain.Leave;
 import com.iitm.roster.domain.Post;
+import com.iitm.roster.domain.DayOff;
 import com.iitm.roster.domain.Roster;
 import com.iitm.roster.domain.ShiftSlot;
 import com.iitm.roster.domain.Staff;
@@ -20,6 +21,7 @@ import java.time.YearMonth;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
+import net.jqwik.api.Example;
 import net.jqwik.api.ForAll;
 import net.jqwik.api.Property;
 import net.jqwik.api.constraints.IntRange;
@@ -62,11 +64,60 @@ class HospitalRosterProperties {
 			}
 		}
 		if (result instanceof GenerationResult.Ok) {
-			// Ok means every slot was filled without adding a HARD violation. The weekly offs are
-			// planned first, and a short week can lack room for everyone's (found by this property;
-			// see RosterGenerationServiceTest), so that is the one HARD rule an Ok roster may break.
+			// Ok means every slot was filled without adding a HARD violation. A weekly off with no
+			// room is owed to next month, which is not a violation.
 			for (Constraint constraint : generator.constraints(input)) {
-				if (constraint.severity() == Severity.HARD && !WeeklyOffConstraint.ID.equals(constraint.id())) {
+				if (constraint.severity() == Severity.HARD) {
+					assertThat(constraint.check(roster)).as(constraint.id()).isEmpty();
+				}
+			}
+		}
+	}
+
+	@Example
+	void anOwedOffIsNotGivenOnThePostDutyOffAfterLastMonthsFinalNight() {
+		YearMonth january = YearMonth.of(2027, 1);
+		MonthInput plain = input(0, 11, 1, List.of(), List.of(), -1);
+		Staff owed = plain.doctors().get(0);
+		MonthInput input = new MonthInput(january, plain.doctors(), plain.doctors().get(1), List.of(), HospitalCalendar.noHolidays(),
+				MonthInput.WEEKDAY_PER_SHIFT, MonthInput.WEEKEND_PER_SHIFT,
+				List.of(new Assignment(new ShiftSlot(january.atDay(1).minusDays(1), NIGHT), owed)), List.of(owed));
+
+		Roster roster = roster(generator.generate(input));
+
+		assertThat(roster.weeklyOffs()).filteredOn(off -> off.staff().equals(owed) && off.date().isBefore(january.atDay(4)))
+				.extracting(DayOff::date).containsExactly(january.atDay(2));
+	}
+
+	@Example
+	void theGeneratorsWeeklyOffRuleSeesLastMonthsFinalNight() {
+		YearMonth january = YearMonth.of(2027, 1);
+		MonthInput plain = input(0, 11, 1, List.of(), List.of(), -1);
+		Staff doctor = plain.doctors().get(0);
+		MonthInput input = new MonthInput(january, plain.doctors(), plain.doctors().get(1), List.of(), HospitalCalendar.noHolidays(),
+				MonthInput.WEEKDAY_PER_SHIFT, MonthInput.WEEKEND_PER_SHIFT,
+				List.of(new Assignment(new ShiftSlot(january.atDay(1).minusDays(1), NIGHT), doctor)), List.of());
+		Roster offOnThePostDutyDay = Roster.empty(january).withWeeklyOffs(List.of(new DayOff(doctor, january.atDay(1))));
+
+		assertThat(generator.constraints(input)).filteredOn(c -> WeeklyOffConstraint.ID.equals(c.id())).singleElement()
+				.satisfies(rule -> assertThat(rule.check(offOnThePostDutyDay)).hasSize(1));
+	}
+
+	@Property(tries = 15)
+	void owedOffsAreGivenWithoutBreakingAHardRule(@ForAll @IntRange(min = 0, max = 35) int monthOffset,
+			@ForAll @IntRange(min = 9, max = 14) int doctorCount, @ForAll @IntRange(min = 0, max = 13) int firstIndex,
+			@ForAll @IntRange(min = 0, max = 4) int owedCount,
+			@ForAll @Size(max = 4) List<@IntRange(min = 0, max = 999) Integer> leaveSeeds) {
+		MonthInput plain = input(monthOffset, doctorCount, firstIndex, leaveSeeds, List.of(), -1);
+		MonthInput input = plain.withOwedOffs(plain.doctors().subList(0, owedCount));
+
+		GenerationResult result = generator.generate(input);
+		Roster roster = roster(result);
+
+		assertThat(roster.weeklyOffs()).doesNotHaveDuplicates();
+		if (result instanceof GenerationResult.Ok) {
+			for (Constraint constraint : generator.constraints(input)) {
+				if (constraint.severity() == Severity.HARD) {
 					assertThat(constraint.check(roster)).as(constraint.id()).isEmpty();
 				}
 			}
@@ -97,7 +148,7 @@ class HospitalRosterProperties {
 				: List.of(new Assignment(new ShiftSlot(month.atDay(1).minusDays(1), NIGHT),
 						doctors.get(nightBeforeIndex % doctorCount)));
 		return new MonthInput(month, doctors, doctors.get(firstIndex % doctorCount), leaves, new HospitalCalendar(holidays),
-				MonthInput.WEEKDAY_PER_SHIFT, MonthInput.WEEKEND_PER_SHIFT, carriedIn);
+				MonthInput.WEEKDAY_PER_SHIFT, MonthInput.WEEKEND_PER_SHIFT, carriedIn, List.of());
 	}
 
 	/** Who did the night of {@code day}, including a night carried in from the month before. */

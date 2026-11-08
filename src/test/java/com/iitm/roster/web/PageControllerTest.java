@@ -285,6 +285,17 @@ class PageControllerTest {
 						"1 HARD rule broken: Test Doctor 10 has no weekly off in the week of 2026-12-21")));
 	}
 
+	@Test
+	void weeklyOffsOwedToNextMonthAreShownWithTheResult() throws Exception {
+		when(generation.owedOffsAfter(YearMonth.of(2026, 12)))
+				.thenReturn(List.of(new Staff("D08", "Test Doctor 8", StaffRole.DOCTOR)));
+		when(generation.generate(any(MonthInput.class), any(Actor.class)))
+				.thenReturn(new GenerationResult.Ok(Roster.empty(YearMonth.of(2026, 12)), 0));
+
+		postGenerate("none")
+				.andExpect(content().string(org.hamcrest.Matchers.containsString("weekly offs owed to 2027-01: Test Doctor 8")));
+	}
+
 	private static Roster sample() {
 		Staff doctor = new Staff("D01", "Test Doctor 1", StaffRole.DOCTOR);
 		return Roster.empty(JULY).withAssignment(

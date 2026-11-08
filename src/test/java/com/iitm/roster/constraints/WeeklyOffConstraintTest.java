@@ -10,10 +10,10 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 import com.iitm.roster.domain.Assignment;
 import com.iitm.roster.domain.DayOff;
-import com.iitm.roster.domain.Leave;
 import com.iitm.roster.domain.Post;
 import com.iitm.roster.domain.Roster;
 import com.iitm.roster.domain.RosterStatus;
+import com.iitm.roster.domain.ShiftSlot;
 import java.time.LocalDate;
 import java.time.YearMonth;
 import java.util.ArrayList;
@@ -22,7 +22,7 @@ import org.junit.jupiter.api.Test;
 
 class WeeklyOffConstraintTest {
 
-	private final WeeklyOffConstraint constraint = new WeeklyOffConstraint(NIGHT, List.of(), Severity.HARD);
+	private final WeeklyOffConstraint constraint = new WeeklyOffConstraint(NIGHT, Severity.HARD);
 
 	private static List<DayOff> offs(int... days) {
 		List<DayOff> offs = new ArrayList<>();
@@ -55,10 +55,8 @@ class WeeklyOffConstraintTest {
 	}
 
 	@Test
-	void aWeekWithoutAnOffIsAViolation() {
-		List<Violation> violations = constraint.check(worksFirst(offs(4, 11, 25, 31)));
-
-		assertThat(violations).extracting(Violation::date).containsExactly(LocalDate.of(2026, 10, 12));
+	void aWeekWithoutAnOffIsOwedNotAViolation() {
+		assertThat(constraint.check(worksFirst(offs(4, 11, 25, 31)))).isEmpty();
 	}
 
 	@Test
@@ -78,11 +76,13 @@ class WeeklyOffConstraintTest {
 	}
 
 	@Test
-	void someoneOnLeaveForTheWholeWeekNeedsNoOff() {
-		Leave leave = new Leave(D1, LocalDate.of(2026, 10, 12), LocalDate.of(2026, 10, 18));
-		WeeklyOffConstraint withLeave = new WeeklyOffConstraint(NIGHT, List.of(leave), Severity.HARD);
+	void theOffCannotBeThePostDutyOffOfANightCarriedInFromLastMonth() {
+		Assignment lastNight = new Assignment(new ShiftSlot(LocalDate.of(2026, 9, 30), NIGHT), D1);
+		WeeklyOffConstraint carried = new WeeklyOffConstraint(NIGHT, Severity.HARD, List.of(lastNight));
 
-		assertThat(withLeave.check(worksFirst(offs(4, 25, 31, 11)))).isEmpty();
+		assertThat(carried.check(new Roster(OCTOBER, RosterStatus.DRAFT, List.of(), offs(2)))).isEmpty();
+		assertThat(carried.check(new Roster(OCTOBER, RosterStatus.DRAFT, List.of(), offs(1))))
+				.extracting(Violation::message).containsExactly("Test Doctor 1's weekly off falls on their post-duty off");
 	}
 
 }

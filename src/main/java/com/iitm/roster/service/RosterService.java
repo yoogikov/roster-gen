@@ -197,6 +197,15 @@ public class RosterService {
 		return freed;
 	}
 
+	/** Writes the audit event for approved leave being cancelled. */
+	@Transactional
+	public void recordLeaveCancelled(Leave leave, Actor actor) {
+		Objects.requireNonNull(leave, "leave");
+		Objects.requireNonNull(actor, "actor");
+		audit.append(new AuditEvent(clock.instant(), actor.username(), YearMonth.from(leave.firstDay()),
+				"cancelled leave for " + leave.staff().id() + " from " + leave.firstDay() + " to " + leave.lastDay()));
+	}
+
 	/** The roster with removals applied, and an assignment to add (if any). */
 	private record Change(Roster without, Optional<Assignment> added, String summary) {
 	}

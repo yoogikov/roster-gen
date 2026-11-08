@@ -12,6 +12,7 @@ import com.iitm.roster.domain.RequestState;
 import com.iitm.roster.domain.Role;
 import com.iitm.roster.domain.Roster;
 import com.iitm.roster.domain.RosterStatus;
+import com.iitm.roster.domain.Post;
 import com.iitm.roster.domain.Staff;
 import com.iitm.roster.domain.StaffRole;
 import com.iitm.roster.domain.StandardShifts;
@@ -146,6 +147,84 @@ class LeaveReachesRosterTest {
 		assertThat(inputs.findByMonth(DECEMBER).orElseThrow().leaves()).containsExactly(new Leave(doctor, FIRST, LAST));
 		assertThat(audit.findAll()).extracting(AuditEvent::summary).hasSize(2)
 				.allSatisfy(summary -> assertThat(summary).startsWith("generated 2026-12"));
+	}
+
+	private Roster handEditedDraft(Staff notThisDoctor) {
+		generation.generate(december(List.of()), ADMIN);
+		Roster before = rosters.findByMonth(DECEMBER).orElseThrow();
+		Assignment edited = before.assignments().stream()
+				.filter(a -> a.post() == Post.GENERAL && !a.staff().equals(notThisDoctor) && a.slot().date().isAfter(LAST))
+				.findFirst().orElseThrow();
+		Roster after = before.withoutAssignment(edited);
+		rosters.save(after);
+		return after;
+	}
+
+	@Test
+	void approvingLeaveOnAHandEditedDraftKeepsTheEditsAndOnlyFreesThatDoctor() {
+		Staff doctor = doctors.get(3);
+		Roster edited = handEditedDraft(doctor);
+		int shiftsOnLeaveDays = onLeaveDays(edited, doctor).size();
+		String id = propose(doctor);
+
+		LeaveResult approved = leaves.approve(id, ADMIN);
+
+		assertThat(approved).isInstanceOfSatisfying(LeaveResult.Approved.class, result -> {
+			assertThat(result.regenerated()).isFalse();
+			assertThat(result.freed()).hasSize(shiftsOnLeaveDays).isNotEmpty();
+		});
+		Roster after = rosters.findByMonth(DECEMBER).orElseThrow();
+		assertThat(onLeaveDays(after, doctor)).isEmpty();
+		assertThat(after.assignments()).hasSize(edited.assignments().size() - shiftsOnLeaveDays);
+	}
+
+	@Test
+	void cancellingLeaveOnAnUntouchedDraftGeneratesItAgainWithoutTheLeave() {
+		Staff doctor = doctors.get(3);
+		generation.generate(december(List.of()), ADMIN);
+		Roster original = rosters.findByMonth(DECEMBER).orElseThrow();
+		String id = propose(doctor);
+		leaves.approve(id, ADMIN);
+
+		LeaveResult cancelled = leaves.cancel(id, ADMIN);
+
+		assertThat(cancelled).isInstanceOfSatisfying(LeaveResult.Cancelled.class, result -> {
+			assertThat(result.regenerated()).isTrue();
+			assertThat(result.request().state()).isEqualTo(RequestState.CANCELLED);
+		});
+		assertThat(inputs.findByMonth(DECEMBER).orElseThrow().leaves()).isEmpty();
+		assertThat(leaveRequests.findApproved(DECEMBER)).isEmpty();
+		assertThat(rosters.findByMonth(DECEMBER).orElseThrow().assignments()).containsExactlyInAnyOrderElementsOf(original.assignments());
+		assertThat(audit.findAll()).extracting(AuditEvent::summary).anyMatch(text -> text.startsWith("cancelled leave for D04"));
+	}
+
+	@Test
+	void cancellingLeaveOnAHandEditedDraftLeavesTheRosterAlone() {
+		Staff doctor = doctors.get(3);
+		generation.generate(december(List.of(new Leave(doctor, FIRST, LAST))), ADMIN);
+		String id = leaveRequests.findApproved(DECEMBER).get(0).id();
+		Roster before = rosters.findByMonth(DECEMBER).orElseThrow();
+		Assignment edited = before.assignments().stream().filter(a -> a.post() == Post.GENERAL).findFirst().orElseThrow();
+		Roster handEdited = before.withoutAssignment(edited);
+		rosters.save(handEdited);
+
+		LeaveResult cancelled = leaves.cancel(id, ADMIN);
+
+		assertThat(cancelled).isInstanceOfSatisfying(LeaveResult.Cancelled.class, result -> assertThat(result.regenerated()).isFalse());
+		assertThat(rosters.findByMonth(DECEMBER).orElseThrow().assignments()).containsExactlyInAnyOrderElementsOf(handEdited.assignments());
+		assertThat(inputs.findByMonth(DECEMBER).orElseThrow().leaves()).isEmpty();
+	}
+
+	@Test
+	void onlyApprovedLeaveCanBeCancelledAndOnlyByAnAdmin() {
+		Staff doctor = doctors.get(3);
+		String id = propose(doctor);
+		assertThat(leaves.cancel(id, ADMIN)).isInstanceOf(LeaveResult.Refused.class);
+
+		leaves.approve(id, ADMIN);
+
+		assertThat(leaves.cancel(id, new Actor("staff1", Role.STAFF, Optional.of("D01")))).isInstanceOf(LeaveResult.NotAllowed.class);
+		assertThat(leaveRequests.findApproved(DECEMBER)).hasSize(1);
 	}
 
 	@Test

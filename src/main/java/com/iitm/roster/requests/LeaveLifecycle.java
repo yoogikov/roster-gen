@@ -33,8 +33,9 @@ import org.springframework.transaction.annotation.Transactional;
  *
  * <p>Approval writes the leave onto the month input (if the month has been generated), so
  * rostering that doctor on those days is refused, and brings the roster in line with it:
- * a draft roster is generated again with the leave, and on a published roster the doctor is
- * taken off the shifts on the leave days. A month not generated yet gets the leave when it is.
+ * a draft roster nobody has edited is generated again with the leave, and on a published or
+ * hand-edited roster the doctor is taken off the shifts on the leave days. A month not generated
+ * yet gets the leave when it is. Approved leave can be cancelled.
  */
 @Service
 @SuppressFBWarnings(value = "EI_EXPOSE_REP2",
@@ -95,6 +96,9 @@ public class LeaveLifecycle {
 			return denied;
 		}
 		Leave leave = request.toLeave();
+		YearMonth month = YearMonth.from(leave.firstDay());
+		Optional<RosterStatus> status = rosters.findByMonth(month).map(Roster::status);
+		boolean untouchedDraft = status.equals(Optional.of(RosterStatus.DRAFT)) && !generation.hasHandEdits(month);
 		boolean generated;
 		try {
 			generated = ledger.add(leave);
@@ -103,12 +107,11 @@ public class LeaveLifecycle {
 		}
 		LeaveRequest approved = request.withState(RequestState.APPROVED);
 		requests.save(approved);
-		Optional<RosterStatus> status = rosters.findByMonth(YearMonth.from(leave.firstDay())).map(Roster::status);
-		if (generated && status.equals(Optional.of(RosterStatus.DRAFT))) {
-			generation.regenerate(YearMonth.from(leave.firstDay()), actor);
+		if (generated && untouchedDraft) {
+			generation.regenerate(month, actor);
 			return new LeaveResult.Approved(approved, List.of(), true);
 		}
-		if (status.equals(Optional.of(RosterStatus.PUBLISHED))) {
+		if (status.isPresent()) {
 			List<Assignment> freed = edits.releaseForLeave(leave, actor);
 			return new LeaveResult.Approved(approved, freed, false);
 		}
@@ -125,6 +128,41 @@ public class LeaveLifecycle {
 		LeaveRequest rejected = request.withState(RequestState.REJECTED);
 		requests.save(rejected);
 		return new LeaveResult.Rejected(rejected);
+	}
+
+	/**
+	 * Takes back approved leave. A draft nobody has edited is generated again without it. Any other
+	 * roster is left alone: shifts already taken from the doctor stay for the admin to fill, and
+	 * the doctor can be rostered on those days again.
+	 */
+	@Transactional
+	public LeaveResult cancel(String id, Actor actor) {
+		LeaveRequest request = requests.findById(id)
+				.orElseThrow(() -> new IllegalArgumentException("no leave request " + id));
+		if (request.state() != RequestState.APPROVED) {
+			return new LeaveResult.Refused("only approved leave can be cancelled");
+		}
+		LeaveResult denied = denial(actor, request);
+		if (denied != null) {
+			return denied;
+		}
+		YearMonth month = YearMonth.from(request.firstDay());
+		boolean untouchedDraft = rosters.findByMonth(month).map(Roster::status).equals(Optional.of(RosterStatus.DRAFT))
+				&& !generation.hasHandEdits(month);
+		ledger.remove(request.toLeave());
+		LeaveRequest cancelled = request.withState(RequestState.CANCELLED);
+		requests.save(cancelled);
+		edits.recordLeaveCancelled(request.toLeave(), actor);
+		if (untouchedDraft) {
+			generation.regenerate(month, actor);
+		}
+		return new LeaveResult.Cancelled(cancelled, untouchedDraft);
+	}
+
+	/** Approved leave not over before {@code today}, oldest request first. */
+	@Transactional(readOnly = true)
+	public List<LeaveRequest> approvedFrom(LocalDate today) {
+		return requests.findAllApproved().stream().filter(request -> !request.lastDay().isBefore(today)).toList();
 	}
 
 	private LeaveResult denial(Actor actor, LeaveRequest request) {

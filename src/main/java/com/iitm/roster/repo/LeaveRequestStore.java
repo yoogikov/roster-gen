@@ -49,6 +49,14 @@ public class LeaveRequestStore {
 				.toList();
 	}
 
+	/** All approved leave, oldest request first. */
+	@Transactional(readOnly = true)
+	public List<LeaveRequest> findAllApproved() {
+		return requests.findByStateInOrderByCreatedAtAsc(List.of(RequestState.APPROVED)).stream()
+				.map(LeaveRequestEntity::toDomain)
+				.toList();
+	}
+
 	/** Every leave request for this doctor, newest first. */
 	@Transactional(readOnly = true)
 	public List<LeaveRequest> findForStaff(String staffId) {

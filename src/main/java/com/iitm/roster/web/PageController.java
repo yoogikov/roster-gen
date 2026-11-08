@@ -34,6 +34,7 @@ import com.iitm.roster.service.RosterQuery;
 import com.iitm.roster.service.RosterService;
 import com.iitm.roster.service.RuleBook;
 import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
+import java.time.Clock;
 import java.time.LocalDate;
 import java.time.YearMonth;
 import java.time.format.DateTimeParseException;
@@ -68,10 +69,11 @@ public class PageController {
 	private final RequestInbox inbox;
 	private final RuleBook rules;
 	private final StaffStore staff;
+	private final Clock clock;
 
 	public PageController(RosterQuery query, RosterService edits, RosterGenerationService generation,
 			AuthorizationPolicy policy, CurrentActor current, ChangeLifecycle changes, LeaveLifecycle leaves,
-			SwapLifecycle swaps, RequestInbox inbox, RuleBook rules, StaffStore staff) {
+			SwapLifecycle swaps, RequestInbox inbox, RuleBook rules, StaffStore staff, Clock clock) {
 		this.query = query;
 		this.edits = edits;
 		this.generation = generation;
@@ -83,12 +85,14 @@ public class PageController {
 		this.inbox = inbox;
 		this.rules = rules;
 		this.staff = staff;
+		this.clock = clock;
 	}
 
 	@GetMapping("/")
 	String home(Model model) {
 		model.addAttribute("admin", admin());
 		model.addAttribute("doctorLines", doctorLines());
+		model.addAttribute("nextMonth", nextMonth());
 		return "home";
 	}
 
@@ -99,13 +103,14 @@ public class PageController {
 			@RequestParam(defaultValue = "") String holidays, Model model) {
 		model.addAttribute("admin", admin());
 		model.addAttribute("doctorLines", doctorLines());
+		model.addAttribute("nextMonth", nextMonth());
 		if (!admin()) {
 			model.addAttribute("notice", "only an admin can generate a roster");
 			return "home";
 		}
 		try {
 			List<Staff> rostered = parseDoctors(doctors);
-			YearMonth yearMonth = YearMonth.parse(month);
+			YearMonth yearMonth = parseMonth(month);
 			String continued = "";
 			Staff first;
 			if (firstOnNights.isBlank()) {
@@ -132,7 +137,15 @@ public class PageController {
 
 	@GetMapping("/rosters/{month}")
 	String roster(@PathVariable String month, Model model) {
-		YearMonth yearMonth = YearMonth.parse(month);
+		YearMonth yearMonth;
+		try {
+			yearMonth = parseMonth(month);
+		} catch (IllegalArgumentException ex) {
+			model.addAttribute("missing", true);
+			model.addAttribute("month", month);
+			model.addAttribute("notice", ex.getMessage());
+			return "roster";
+		}
 		Roster roster = query.find(yearMonth).orElse(null);
 		if (roster == null) {
 			model.addAttribute("missing", true);
@@ -171,7 +184,7 @@ public class PageController {
 		try {
 			EditBody body = new EditBody(type, date, shift, staffId, fromStaffId, toStaffId, post);
 			EditCommand command = body.toCommand();
-			YearMonth yearMonth = YearMonth.parse(month);
+			YearMonth yearMonth = parseMonth(month);
 			Roster roster = query.find(yearMonth).orElseThrow(() -> new IllegalArgumentException("no roster for " + month));
 			Actor actor = current.get();
 			Decision decision = policy.may(actor, new Action.EditShift(body.slot(), body.staffIds()), roster);
@@ -193,7 +206,7 @@ public class PageController {
 			@RequestParam LocalDate toDate, Model model) {
 		String notice;
 		try {
-			YearMonth yearMonth = YearMonth.parse(month);
+			YearMonth yearMonth = parseMonth(month);
 			Roster roster = query.find(yearMonth).orElseThrow(() -> new IllegalArgumentException("no roster for " + month));
 			Actor actor = current.get();
 			EditCommand command = new EditCommand.MoveWeeklyOff(fromDate, staffId, toDate);
@@ -216,7 +229,7 @@ public class PageController {
 			Model model) {
 		String notice;
 		try {
-			YearMonth yearMonth = YearMonth.parse(month);
+			YearMonth yearMonth = parseMonth(month);
 			Roster roster = query.find(yearMonth).orElseThrow(() -> new IllegalArgumentException("no roster for " + month));
 			Assignment offer = SheetShifts.parse(roster, offered);
 			Assignment want = SheetShifts.parse(roster, wanted);
@@ -233,7 +246,7 @@ public class PageController {
 	String publish(@PathVariable String month, Model model) {
 		String notice;
 		try {
-			YearMonth yearMonth = YearMonth.parse(month);
+			YearMonth yearMonth = parseMonth(month);
 			Roster roster = query.find(yearMonth).orElseThrow(() -> new IllegalArgumentException("no roster for " + month));
 			Actor actor = current.get();
 			Decision decision = policy.may(actor, new Action.PublishRoster(), roster);
@@ -267,6 +280,7 @@ public class PageController {
 		model.addAttribute("admin", admin());
 		model.addAttribute("actor", actor);
 		model.addAttribute("staff", actor.role() == Role.STAFF);
+		model.addAttribute("approvedLeaves", admin() ? leaves.approvedFrom(LocalDate.now(clock)) : List.of());
 		return "inbox";
 	}
 
@@ -305,12 +319,23 @@ public class PageController {
 		return inboxNotice(model, text(leaves.reject(id, current.get())));
 	}
 
+	@PostMapping("/inbox/leaves/{id}/cancel")
+	String cancelLeave(@PathVariable String id, Model model) {
+		String notice;
+		try {
+			notice = text(leaves.cancel(id, current.get()));
+		} catch (IllegalArgumentException ex) {
+			notice = ex.getMessage();
+		}
+		return inboxNotice(model, notice);
+	}
+
 	@GetMapping("/rules")
 	String rules(@RequestParam(defaultValue = "") String month, Model model) {
 		model.addAttribute("templates", rules.templates());
 		model.addAttribute("month", month);
 		if (!month.isBlank()) {
-			model.addAttribute("saved", rules.saved(YearMonth.parse(month)));
+			model.addAttribute("saved", rules.saved(parseMonth(month)));
 		}
 		return "rules";
 	}
@@ -323,7 +348,7 @@ public class PageController {
 				: Map.of();
 		String notice;
 		try {
-			rules.save(YearMonth.parse(month), new RuleSpec(templateId, params));
+			rules.save(parseMonth(month), new RuleSpec(templateId, params));
 			notice = "saved " + templateId + " for " + month;
 		} catch (InvalidRuleException | RuntimeException ex) {
 			notice = ex.getMessage();
@@ -362,6 +387,19 @@ public class PageController {
 	}
 
 	/** Active doctors as {@code id,name} lines for the generate form. */
+	private String nextMonth() {
+		return YearMonth.now(clock).plusMonths(1).toString();
+	}
+
+	/** {@code text} as a month, with an error a person can act on. */
+	private static YearMonth parseMonth(String text) {
+		try {
+			return YearMonth.parse(text.trim());
+		} catch (DateTimeParseException ex) {
+			throw new IllegalArgumentException("\"" + text + "\" is not a month; write it like 2026-12", ex);
+		}
+	}
+
 	private String doctorLines() {
 		List<Staff> active = staff.findActive();
 		if (active.isEmpty()) {
@@ -487,6 +525,10 @@ public class PageController {
 			case LeaveResult.Approved approved -> approvedText(approved);
 			case LeaveResult.Rejected rejected -> "leave rejected for " + rejected.request().staff().name() + " from "
 					+ rejected.request().firstDay() + " to " + rejected.request().lastDay();
+			case LeaveResult.Cancelled cancelled -> "leave cancelled for " + cancelled.request().staff().name() + " from "
+					+ cancelled.request().firstDay() + " to " + cancelled.request().lastDay()
+					+ (cancelled.regenerated() ? "; the draft roster was generated again without it"
+							: "; the roster was not changed, and the doctor can be rostered on those days again");
 			case LeaveResult.NotAllowed notAllowed -> decisionText(notAllowed.decision());
 			case LeaveResult.Refused refused -> refused.reason();
 		};

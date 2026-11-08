@@ -72,5 +72,18 @@
 		</form>
 	</li>
 </ul>
+
+<section th:if="${admin}">
+	<h2>Approved leave</h2>
+	<p th:if="${#lists.isEmpty(approvedLeaves)}">No current or upcoming approved leave.</p>
+	<ul>
+		<li th:each="leave : ${approvedLeaves}">
+			<span th:text="${leave.staff.name} + ' ' + ${leave.firstDay} + ' to ' + ${leave.lastDay}">leave</span>
+			<form method="post" th:action="@{'/inbox/leaves/' + ${leave.id} + '/cancel'}">
+				<button type="submit">Cancel leave</button>
+			</form>
+		</li>
+	</ul>
+</section>
 </body>
 </html>

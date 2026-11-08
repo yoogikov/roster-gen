@@ -177,6 +177,28 @@ public class RosterGenerationService {
 	}
 
 	/**
+	 * The nights in {@code month} that doctors on short leave still have to arrange: those where
+	 * the doctor the rotation pencilled in is still on the night. A night already swapped or
+	 * changed by hand is not listed.
+	 *
+	 * @return empty if the month has no roster or no stored input
+	 */
+	@Transactional(readOnly = true)
+	public List<NightRotation.Cover> nightCovers(YearMonth month) {
+		Objects.requireNonNull(month, "month");
+		Optional<Roster> roster = rosters.findByMonth(month);
+		Optional<StoredMonthInput> stored = inputs.findByMonth(month);
+		if (roster.isEmpty() || stored.isEmpty()) {
+			return List.of();
+		}
+		return generator.nightCovers(MonthInputs.withCarriedIn(MonthInputs.fromStored(stored.get()), rosters, inputs, generator.night()))
+				.stream()
+				.filter(cover -> roster.get().assignments().stream().anyMatch(a -> a.slot().shift().equals(generator.night())
+						&& a.slot().date().equals(cover.date()) && a.staff().id().equals(cover.pencilledIn().id())))
+				.toList();
+	}
+
+	/**
 	 * Whether {@code month}'s stored roster differs from what its stored input generates, which
 	 * means someone has changed it by hand. Generation is repeatable, so nothing extra is stored.
 	 * If the month before has changed since, this also says true, which only makes callers keep

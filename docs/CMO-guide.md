@@ -31,6 +31,7 @@ Requests appear in the **Inbox**.
 - **Leave:** approve or reject it. If you approve leave on a draft that nobody has changed, the month is rebuilt with it. If you have changed the draft, or it is published, your changes stay and the doctor is simply taken off those days. Any shifts this empties are listed for you to fill.
 - **Cancelling leave:** approved leave appears under **Approved leave** with a **Cancel leave** button. If the month is published or you have changed it, the doctor is not put back on shifts automatically.
 - **Swaps:** a doctor proposes a swap on the published sheet, the other doctor accepts, and you approve. A swap is refused if it would break a rule. If it is not approved before the shift starts, it lapses and nothing changes.
+- **Nights missed through leave:** leave of no more days than there are doctors misses at most one night. The next doctor is pencilled in and the sheet names the night, the doctor away and that doctor. The doctor away must arrange the swap, with anyone. The pencilled-in doctor, reception or you can enter it on the sheet, and the line disappears once the night changes. Longer leave takes the doctor out of the rotation until the day they return, when they do that night.
 
 ## If something looks wrong
 

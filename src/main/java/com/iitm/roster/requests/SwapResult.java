@@ -56,20 +56,6 @@ public sealed interface SwapResult {
 
 	}
 
-	/**
-	 * Refused before a request is stored. Used when a short-leave night would go to someone
-	 * other than the next doctor in the rotation.
-	 */
-	record Refused(String reason) implements SwapResult {
-
-		public Refused {
-			if (reason == null || reason.isBlank()) {
-				throw new IllegalArgumentException("reason must not be blank");
-			}
-		}
-
-	}
-
 	/** The roster edit was rejected. The request stays as it was and nothing is saved. */
 	record EditRejected(SwapRequest request, EditResult.Rejected edit) implements SwapResult {
 

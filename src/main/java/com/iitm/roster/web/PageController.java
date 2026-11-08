@@ -22,6 +22,7 @@ import com.iitm.roster.rules.InvalidRuleException;
 import com.iitm.roster.rules.RuleSpec;
 import com.iitm.roster.scheduler.GenerationResult;
 import com.iitm.roster.scheduler.MonthInput;
+import com.iitm.roster.scheduler.NightRotation;
 import com.iitm.roster.security.Action;
 import com.iitm.roster.security.AuthorizationPolicy;
 import com.iitm.roster.security.CurrentActor;
@@ -163,6 +164,7 @@ public class PageController {
 		model.addAttribute("owedFrom", owedNames(generation.owedOffsInto(yearMonth)));
 		model.addAttribute("owedToMonth", yearMonth.plusMonths(1).toString());
 		model.addAttribute("owedTo", owedNames(generation.owedOffsAfter(yearMonth)));
+		model.addAttribute("nightCovers", nightCovers(generation.nightCovers(yearMonth)));
 		model.addAttribute("canEdit", canEdit);
 		model.addAttribute("staffForms", staffForms);
 		model.addAttribute("doctors", staff.findActive());
@@ -509,7 +511,6 @@ public class PageController {
 			case SwapResult.Approved approved -> "swap approved: " + swapText(approved.request());
 			case SwapResult.Rejected rejected -> "swap rejected: " + swapText(rejected.request());
 			case SwapResult.NotAllowed notAllowed -> decisionText(notAllowed.decision());
-			case SwapResult.Refused refused -> refused.reason();
 			case SwapResult.EditRejected editRejected -> editRejected.edit().violations().get(0).message();
 		};
 	}
@@ -562,6 +563,13 @@ public class PageController {
 			return "";
 		}
 		return "; weekly offs owed to " + month.plusMonths(1) + ": " + owedNames(owed);
+	}
+
+	/** Each missed night on short leave, with who must arrange it and who is pencilled in; blank if none. */
+	private static String nightCovers(List<NightRotation.Cover> covers) {
+		return covers.stream()
+				.map(cover -> cover.date() + ": " + cover.away().name() + " is away, " + cover.pencilledIn().name() + " is pencilled in")
+				.collect(Collectors.joining("; "));
 	}
 
 	/** Doctors' names in the order given, with a count for anyone owed more than one; blank if none. */

@@ -28,6 +28,9 @@
 	<form th:if="${canEdit}" method="post" th:action="@{'/rosters/' + ${month} + '/publish'}">
 		<button type="submit">Publish</button>
 	</form>
+	<p class="notice" id="night-covers" th:if="${!#strings.isEmpty(nightCovers)}">Night duties missed through leave. The doctor away
+		must arrange the swap; until then the doctor named is pencilled in:
+		<span th:text="${nightCovers}">covers</span></p>
 	<p class="notice" id="owed-from" th:if="${!#strings.isEmpty(owedFrom)}">Weekly offs owed from
 		<span th:text="${owedFromMonth}">last month</span>, given this month as extra offs where there was room:
 		<span th:text="${owedFrom}">names</span></p>

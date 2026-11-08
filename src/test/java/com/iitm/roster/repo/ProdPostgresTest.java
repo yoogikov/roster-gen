@@ -24,7 +24,7 @@ import org.springframework.test.context.DynamicPropertySource;
 
 /**
  * The prod profile against a real Postgres. Flyway applies {@code V1__hospital_roster.sql}
- * and Hibernate only validates, which is the deployed startup path.
+ * and {@code V2__user_accounts.sql}; Hibernate only validates, which is the deployed startup path.
  */
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.NONE)
 @ActiveProfiles("prod")

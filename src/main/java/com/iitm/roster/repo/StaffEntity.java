@@ -23,12 +23,16 @@ class StaffEntity {
 	@Column(nullable = false)
 	private StaffRole role;
 
+	@Column(nullable = false)
+	private boolean active = true;
+
 	protected StaffEntity() {
 		// Required by JPA, which instantiates the class before setting fields; not for application code.
 	}
 
 	StaffEntity(Staff staff) {
 		this.id = staff.id();
+		this.active = true;
 		update(staff);
 	}
 
@@ -37,12 +41,24 @@ class StaffEntity {
 		this.role = staff.role();
 	}
 
+	void setActive(boolean active) {
+		this.active = active;
+	}
+
 	String id() {
 		return id;
 	}
 
+	boolean active() {
+		return active;
+	}
+
 	Staff toDomain() {
 		return new Staff(id, name, role);
+	}
+
+	StaffRecord toRecord() {
+		return new StaffRecord(id, name, role, active);
 	}
 
 }

@@ -30,7 +30,8 @@ import com.iitm.roster.requests.SwapLifecycle;
 import com.iitm.roster.scheduler.GenerationResult;
 import com.iitm.roster.scheduler.MonthInput;
 import com.iitm.roster.security.CurrentActor;
-import com.iitm.roster.security.DevUsersConfig;
+import com.iitm.roster.repo.StaffStore;
+import com.iitm.roster.security.WebMvcTestUsers;
 import com.iitm.roster.security.HospitalAuthorizationPolicy;
 import com.iitm.roster.security.SecurityConfig;
 import com.iitm.roster.service.RosterGenerationService;
@@ -62,7 +63,7 @@ import org.springframework.test.web.servlet.MockMvc;
 @WebMvcTest(controllers = PageController.class)
 @AutoConfigureMockMvc
 @ActiveProfiles("dev")
-@Import({SecurityConfig.class, DevUsersConfig.class, HospitalAuthorizationPolicy.class, CurrentActor.class,
+@Import({SecurityConfig.class, WebMvcTestUsers.class, HospitalAuthorizationPolicy.class, CurrentActor.class,
 		PageControllerTest.ClockConfig.class})
 @TestPropertySource(properties = "roster.dev-users.password=" + PageControllerTest.PASSWORD)
 class PageControllerTest {
@@ -98,10 +99,14 @@ class PageControllerTest {
 	@MockitoBean
 	private RuleBook rules;
 
+	@MockitoBean
+	private StaffStore staff;
+
 	/** A mock returns null; the real service returns no holidays for a month never generated. */
 	@BeforeEach
 	void noSavedHolidays() {
 		when(generation.calendarFor(any(YearMonth.class))).thenReturn(HospitalCalendar.noHolidays());
+		when(staff.findActive()).thenReturn(List.of());
 	}
 
 	@Test

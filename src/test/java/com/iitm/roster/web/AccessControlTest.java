@@ -24,7 +24,7 @@ import com.iitm.roster.export.Format;
 import com.iitm.roster.requests.ChangeLifecycle;
 import com.iitm.roster.requests.ChangeResult;
 import com.iitm.roster.security.CurrentActor;
-import com.iitm.roster.security.DevUsersConfig;
+import com.iitm.roster.security.WebMvcTestUsers;
 import com.iitm.roster.security.HospitalAuthorizationPolicy;
 import com.iitm.roster.security.SecurityConfig;
 import com.iitm.roster.service.EditResult;
@@ -61,7 +61,7 @@ import org.springframework.test.web.servlet.MockMvc;
 @WebMvcTest(controllers = RosterController.class)
 @AutoConfigureMockMvc
 @ActiveProfiles("dev")
-@Import({SecurityConfig.class, DevUsersConfig.class, HospitalAuthorizationPolicy.class, CurrentActor.class,
+@Import({SecurityConfig.class, WebMvcTestUsers.class, HospitalAuthorizationPolicy.class, CurrentActor.class,
 		AccessControlTest.ClockConfig.class})
 @TestPropertySource(properties = "roster.dev-users.password=" + AccessControlTest.PASSWORD)
 class AccessControlTest {

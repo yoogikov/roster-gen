@@ -26,10 +26,12 @@ import com.iitm.roster.security.CurrentActor;
 import com.iitm.roster.security.Decision;
 import com.iitm.roster.service.EditCommand;
 import com.iitm.roster.service.EditResult;
+import com.iitm.roster.repo.StaffStore;
 import com.iitm.roster.service.RosterGenerationService;
 import com.iitm.roster.service.RosterQuery;
 import com.iitm.roster.service.RosterService;
 import com.iitm.roster.service.RuleBook;
+import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import java.time.LocalDate;
 import java.time.YearMonth;
 import java.time.format.DateTimeParseException;
@@ -49,6 +51,8 @@ import org.springframework.web.bind.annotation.RequestParam;
 
 /** Thymeleaf pages: the roster sheet, audit log, request inbox, rule editor and leave form. */
 @Controller
+@SuppressFBWarnings(value = "EI_EXPOSE_REP2",
+		justification = "the services and stores are Spring singletons injected on purpose; sharing them is the point")
 public class PageController {
 
 	private final RosterQuery query;
@@ -61,10 +65,11 @@ public class PageController {
 	private final SwapLifecycle swaps;
 	private final RequestInbox inbox;
 	private final RuleBook rules;
+	private final StaffStore staff;
 
 	public PageController(RosterQuery query, RosterService edits, RosterGenerationService generation,
 			AuthorizationPolicy policy, CurrentActor current, ChangeLifecycle changes, LeaveLifecycle leaves,
-			SwapLifecycle swaps, RequestInbox inbox, RuleBook rules) {
+			SwapLifecycle swaps, RequestInbox inbox, RuleBook rules, StaffStore staff) {
 		this.query = query;
 		this.edits = edits;
 		this.generation = generation;
@@ -75,11 +80,13 @@ public class PageController {
 		this.swaps = swaps;
 		this.inbox = inbox;
 		this.rules = rules;
+		this.staff = staff;
 	}
 
 	@GetMapping("/")
 	String home(Model model) {
 		model.addAttribute("admin", admin());
+		model.addAttribute("doctorLines", doctorLines());
 		return "home";
 	}
 
@@ -89,6 +96,7 @@ public class PageController {
 			@RequestParam int weekday, @RequestParam int weekend, @RequestParam(defaultValue = "") String leave,
 			@RequestParam(defaultValue = "") String holidays, Model model) {
 		model.addAttribute("admin", admin());
+		model.addAttribute("doctorLines", doctorLines());
 		if (!admin()) {
 			model.addAttribute("notice", "only an admin can generate a roster");
 			return "home";
@@ -285,6 +293,15 @@ public class PageController {
 
 	private boolean admin() {
 		return current.get().role() == Role.ADMIN;
+	}
+
+	/** Active doctors as {@code id,name} lines for the generate form. */
+	private String doctorLines() {
+		List<Staff> active = staff.findActive();
+		if (active.isEmpty()) {
+			return "";
+		}
+		return active.stream().map(doctor -> doctor.id() + "," + doctor.name()).collect(Collectors.joining("\n"));
 	}
 
 	private static List<Staff> parseDoctors(String text) {

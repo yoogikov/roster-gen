@@ -6,14 +6,19 @@ import java.util.Optional;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.userdetails.User;
 
-/** A dev login, with the staff id it acts as when the account is a doctor. */
+/** A login, with the staff id it acts as when the account is a doctor. */
 public final class RosterUser extends User {
 
 	private final String role;
 	private final String staffId;
 
 	public RosterUser(String username, String password, String role, String staffId) {
-		super(username, password, List.of(new SimpleGrantedAuthority("ROLE_" + Objects.requireNonNull(role, "role"))));
+		this(username, password, true, role, staffId);
+	}
+
+	public RosterUser(String username, String password, boolean enabled, String role, String staffId) {
+		super(username, password, enabled, true, true, true,
+				List.of(new SimpleGrantedAuthority("ROLE_" + Objects.requireNonNull(role, "role"))));
 		this.role = role;
 		this.staffId = staffId;
 	}

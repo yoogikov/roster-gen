@@ -2,29 +2,23 @@ package com.iitm.roster.security;
 
 import java.util.Map;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.boot.test.context.TestConfiguration;
 import org.springframework.context.annotation.Bean;
-import org.springframework.context.annotation.Configuration;
-import org.springframework.context.annotation.Profile;
 import org.springframework.security.core.userdetails.UserDetailsService;
 import org.springframework.security.core.userdetails.UsernameNotFoundException;
 import org.springframework.security.crypto.password.PasswordEncoder;
 
 /**
- * The same four synthetic logins as the dev profile, for a local Postgres deploy.
- * The password comes from {@code ROSTER_ADMIN_PASSWORD}; there is no default.
- * They are not a hospital user store (gap 10).
+ * In-memory users for {@code @WebMvcTest} slices that do not start JPA. Same four logins as the
+ * old {@code DevUsersConfig}: admin, reception, staff1 (D01), staff2 (D06).
  */
-@Configuration
-@Profile("prod")
-public class ProdUsersConfig {
+@TestConfiguration
+public class WebMvcTestUsers {
 
 	@Bean
-	UserDetailsService prodUsers(
-			@Value("${roster.admin-password}") String password,
+	UserDetailsService webMvcUsers(
+			@Value("${roster.dev-users.password:test-only-password}") String password,
 			PasswordEncoder passwordEncoder) {
-		if (password == null || password.isBlank()) {
-			throw new IllegalStateException("ROSTER_ADMIN_PASSWORD must be set in prod");
-		}
 		String encoded = passwordEncoder.encode(password);
 		Map<String, RosterUser> users = Map.of(
 				"admin", new RosterUser("admin", encoded, "ADMIN", null),
@@ -36,7 +30,8 @@ public class ProdUsersConfig {
 			if (found == null) {
 				throw new UsernameNotFoundException(username);
 			}
-			return new RosterUser(found.getUsername(), found.getPassword(), found.role(), found.staffId().orElse(null));
+			return new RosterUser(found.getUsername(), found.getPassword(), found.isEnabled(), found.role(),
+					found.staffId().orElse(null));
 		};
 	}
 

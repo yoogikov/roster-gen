@@ -130,7 +130,8 @@ public class RosterController {
 		return ResponseEntity.ok(edits.publish(yearMonth, actor));
 	}
 
-	@GetMapping("/api/rosters/{month}/export")
+	/** The /api path takes HTTP Basic, for scripts. The sheet's links use the other, which takes the signed-in session. */
+	@GetMapping({"/api/rosters/{month}/export", "/rosters/{month}/export"})
 	ResponseEntity<?> export(@PathVariable String month, @RequestParam(defaultValue = "csv") String format) {
 		YearMonth yearMonth = YearMonth.parse(month);
 		Roster roster = query.find(yearMonth)

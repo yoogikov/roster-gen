@@ -4,6 +4,7 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
+import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestBuilders.formLogin;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.httpBasic;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
@@ -49,6 +50,7 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Import;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
+import org.springframework.mock.web.MockHttpSession;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.context.TestPropertySource;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
@@ -153,6 +155,17 @@ class AccessControlTest {
 				.andExpect(status().isOk())
 				.andExpect(content().contentType("text/csv"))
 				.andExpect(header().string(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=roster-2026-07.csv"));
+	}
+
+	@Test
+	void aSignedInBrowserCanDownloadFromTheSheetsLink() throws Exception {
+		when(exports.export(JULY, Format.CSV)).thenReturn("date\n".getBytes(StandardCharsets.UTF_8));
+		MockHttpSession session = (MockHttpSession) mockMvc.perform(formLogin().user("admin").password(PASSWORD))
+				.andReturn().getRequest().getSession();
+
+		mockMvc.perform(get("/rosters/2026-07/export").param("format", "csv").session(session))
+				.andExpect(status().isOk())
+				.andExpect(content().contentType("text/csv"));
 	}
 
 	@Test

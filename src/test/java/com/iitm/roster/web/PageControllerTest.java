@@ -148,6 +148,25 @@ class PageControllerTest {
 	}
 
 	@Test
+	void theGeneratePageOffersNextMonthAndNoTestDoctors() throws Exception {
+		mockMvc.perform(get("/").with(httpBasic("admin", PASSWORD)))
+				.andExpect(content().string(org.hamcrest.Matchers.containsString("value=\"2026-08\"")))
+				.andExpect(content().string(org.hamcrest.Matchers.not(org.hamcrest.Matchers.containsString("Synthetic"))))
+				.andExpect(content().string(org.hamcrest.Matchers.not(org.hamcrest.Matchers.containsString("Test Doctor"))));
+	}
+
+	@Test
+	void aMistypedMonthGetsAReadableMessage() throws Exception {
+		mockMvc.perform(post("/rosters/generate").with(httpBasic("admin", PASSWORD)).param("month", "december")
+						.param("doctors", "D01,Test Doctor 1").param("weekday", "2").param("weekend", "2"))
+				.andExpect(status().isOk())
+				.andExpect(content().string(org.hamcrest.Matchers.containsString("is not a month; write it like 2026-12")));
+		mockMvc.perform(get("/rosters/december").with(httpBasic("admin", PASSWORD)))
+				.andExpect(status().isOk())
+				.andExpect(content().string(org.hamcrest.Matchers.containsString("is not a month; write it like 2026-12")));
+	}
+
+	@Test
 	void theSheetSaysNothingAboutOwedOffsWhenNoneAre() throws Exception {
 		when(query.find(JULY)).thenReturn(Optional.of(sample()));
 

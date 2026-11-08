@@ -40,7 +40,7 @@ cd roster-gen
 ./gradlew test
 ```
 
-Use synthetic doctors only (`Test Doctor 1` … `Test Doctor 11`, ids `D01` … `D11`).
+Tests and demos use synthetic doctors (`Test Doctor 1` … `Test Doctor 11`, ids `D01` … `D11`). The hospital enters its own doctors on `/doctors`. See `docs/CMO-guide.md` for how to use the app.
 There is no import of a real hospital sheet.
 
 ## Run (dev, default)

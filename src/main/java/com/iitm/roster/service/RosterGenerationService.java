@@ -176,6 +176,31 @@ public class RosterGenerationService {
 				.orElse(List.of());
 	}
 
+	/**
+	 * Whether {@code month}'s stored roster differs from what its stored input generates, which
+	 * means someone has changed it by hand. Generation is repeatable, so nothing extra is stored.
+	 * If the month before has changed since, this also says true, which only makes callers keep
+	 * the roster rather than replace it.
+	 *
+	 * @return false if the month has no roster or no stored input
+	 */
+	@Transactional(readOnly = true)
+	public boolean hasHandEdits(YearMonth month) {
+		Objects.requireNonNull(month, "month");
+		Optional<Roster> stored = rosters.findByMonth(month);
+		Optional<StoredMonthInput> input = inputs.findByMonth(month);
+		if (stored.isEmpty() || input.isEmpty()) {
+			return false;
+		}
+		Roster generated = switch (generator.generate(
+				MonthInputs.withCarriedIn(MonthInputs.fromStored(input.get()), rosters, inputs, generator.night()))) {
+			case GenerationResult.Ok ok -> ok.roster();
+			case GenerationResult.Infeasible infeasible -> infeasible.partial();
+		};
+		return !new HashSet<>(generated.assignments()).equals(new HashSet<>(stored.get().assignments()))
+				|| !new HashSet<>(generated.weeklyOffs()).equals(new HashSet<>(stored.get().weeklyOffs()));
+	}
+
 	private List<Violation> hardViolations(Roster roster, MonthInput input) {
 		List<Violation> broken = new ArrayList<>();
 		for (Constraint constraint : generator.constraints(input)) {

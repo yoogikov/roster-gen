@@ -58,4 +58,19 @@ public class LeaveLedger {
 		return true;
 	}
 
+	/** Takes {@code leave} off the stored input of every month it touches, where it is recorded. */
+	@Transactional
+	public void remove(Leave leave) {
+		Objects.requireNonNull(leave, "leave");
+		for (YearMonth month = YearMonth.from(leave.firstDay()); !month.isAfter(YearMonth.from(leave.lastDay()));
+				month = month.plusMonths(1)) {
+			inputs.findByMonth(month).filter(stored -> stored.leaves().contains(leave)).ifPresent(stored -> {
+				List<Leave> leaves = new ArrayList<>(stored.leaves());
+				leaves.remove(leave);
+				inputs.save(new StoredMonthInput(stored.month(), stored.doctors(), stored.firstOnNights(), leaves,
+						stored.calendar(), stored.weekdayPerShift(), stored.weekendPerShift()));
+			});
+		}
+	}
+
 }

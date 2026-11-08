@@ -18,14 +18,14 @@
 <p class="notice" th:if="${notice}" th:text="${notice}"></p>
 <section th:if="${admin}">
 	<h2>Generate a month</h2>
-	<p>One doctor per line: id, name. Synthetic names only.</p>
+	<p>One doctor per line: id, name.</p>
 	<form class="stack" method="post" action="/rosters/generate">
-		<label>Month <input name="month" value="2026-11" required="required"/></label>
+		<label>Month <input name="month" th:value="${nextMonth}" placeholder="2026-12" required="required"/></label>
 		<label>Doctors <textarea name="doctors" rows="6" required="required"
-			th:text="${doctorLines}">D01,Test Doctor 1</textarea></label>
+			th:text="${doctorLines}"></textarea></label>
 		<p>Filled from active doctors on <a href="/doctors">/doctors</a>. Edit the box to change who is
 			rostered this month.</p>
-		<label>Leave <textarea name="leave" rows="3" placeholder="D03,2026-11-10,2026-11-12"></textarea></label>
+		<label>Leave <textarea name="leave" rows="3" placeholder="D03,2026-12-10,2026-12-12"></textarea></label>
 		<p>Leave: one per line, doctor id, first day, last day. It is saved as approved leave, and
 			approved leave requests for the month are added automatically.</p>
 		<label>Holidays <input name="holidays" size="40" placeholder="2026-12-25, 2026-12-31"/></label>

@@ -27,6 +27,7 @@ import com.iitm.roster.repo.RosterStore;
 import com.iitm.roster.repo.StaffStore;
 import com.iitm.roster.scheduler.GenerationResult;
 import com.iitm.roster.scheduler.MonthInput;
+import com.iitm.roster.scheduler.NightRotation;
 import java.time.LocalDate;
 import java.time.YearMonth;
 import java.util.ArrayList;
@@ -313,6 +314,25 @@ class RosterGenerationServiceTest {
 
 		assertThat(generation.brokenRules(OCTOBER)).isEmpty();
 		assertThat(generation.brokenRules(YearMonth.of(2027, 5))).isEmpty();
+	}
+
+	@Test
+	void aMissedNightIsListedUntilThePencilledInDoctorIsNoLongerOnIt() {
+		MonthInput base = october();
+		LocalDate third = LocalDate.of(2026, 10, 3);
+		Staff away = base.doctors().get(2);
+		generation.generate(new MonthInput(OCTOBER, base.doctors(), base.firstOnNights(),
+				List.of(new Leave(away, third, third.plusDays(1))), base.calendar(), 4, 2), ADMIN);
+
+		assertThat(generation.nightCovers(OCTOBER))
+				.containsExactly(new NightRotation.Cover(third, away, base.doctors().get(3)));
+
+		Roster roster = rosters.findByMonth(OCTOBER).orElseThrow();
+		rosters.save(roster.withoutAssignment(roster.assignments().stream()
+				.filter(a -> a.slot().shift().equals(NIGHT) && a.slot().date().equals(third))
+				.findFirst().orElseThrow()));
+
+		assertThat(generation.nightCovers(OCTOBER)).isEmpty();
 	}
 
 	private static MonthInput october() {

@@ -76,7 +76,6 @@ public class SwapController {
 			case SwapResult.Approved approved -> ResponseEntity.ok(view(approved.request().id(), approved.request().state().name(), null));
 			case SwapResult.Rejected rejected -> ResponseEntity.ok(view(rejected.request().id(), rejected.request().state().name(), null));
 			case SwapResult.NotAllowed notAllowed -> Decisions.forbidden(notAllowed.decision());
-			case SwapResult.Refused refused -> ResponseEntity.unprocessableContent().body(view(null, null, refused.reason()));
 			case SwapResult.EditRejected editRejected -> ResponseEntity.unprocessableContent().body(view(
 					editRejected.request().id(), editRejected.request().state().name(),
 					editRejected.edit().violations().get(0).message()));

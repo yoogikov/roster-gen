@@ -29,6 +29,7 @@ import com.iitm.roster.requests.RequestInbox;
 import com.iitm.roster.requests.SwapLifecycle;
 import com.iitm.roster.scheduler.GenerationResult;
 import com.iitm.roster.scheduler.MonthInput;
+import com.iitm.roster.scheduler.NightRotation;
 import com.iitm.roster.security.CurrentActor;
 import com.iitm.roster.repo.StaffStore;
 import com.iitm.roster.security.WebMvcTestUsers;
@@ -118,6 +119,22 @@ class PageControllerTest {
 				.andExpect(content().string(org.hamcrest.Matchers.containsString("Test Doctor 1 W")))
 				.andExpect(content().string(org.hamcrest.Matchers.containsString("Post-duty off")))
 				.andExpect(content().string(org.hamcrest.Matchers.not(org.hamcrest.Matchers.containsString("edit-form"))));
+	}
+
+	@Test
+	void theSheetNamesWhoMustArrangeAMissedNight() throws Exception {
+		Staff away = new Staff("D02", "Test Doctor 2", StaffRole.DOCTOR);
+		Staff pencilled = new Staff("D03", "Test Doctor 3", StaffRole.DOCTOR);
+		when(query.find(JULY)).thenReturn(Optional.of(sample()));
+		when(generation.nightCovers(JULY)).thenReturn(List.of(new NightRotation.Cover(JULY.atDay(2), away, pencilled)));
+
+		String page = mockMvc.perform(get("/rosters/2026-07").with(httpBasic("staff1", PASSWORD)))
+				.andExpect(status().isOk())
+				.andReturn().getResponse().getContentAsString();
+
+		assertThat(page.replaceAll("\\s+", " "))
+				.contains("id=\"night-covers\"")
+				.contains("2026-07-02: Test Doctor 2 is away, Test Doctor 3 is pencilled in");
 	}
 
 	@Test

@@ -2,7 +2,6 @@ package com.iitm.roster.requests;
 
 import com.iitm.roster.domain.Actor;
 import com.iitm.roster.domain.Assignment;
-import com.iitm.roster.domain.Leave;
 import com.iitm.roster.domain.Post;
 import com.iitm.roster.domain.RequestState;
 import com.iitm.roster.domain.Roster;
@@ -10,11 +9,8 @@ import com.iitm.roster.domain.ShiftSlot;
 import com.iitm.roster.domain.Staff;
 import com.iitm.roster.domain.StandardShifts;
 import com.iitm.roster.domain.SwapRequest;
-import com.iitm.roster.repo.MonthInputStore;
 import com.iitm.roster.repo.RosterStore;
-import com.iitm.roster.repo.StoredMonthInput;
 import com.iitm.roster.repo.SwapRequestStore;
-import com.iitm.roster.scheduler.NightRotation;
 import com.iitm.roster.security.Action;
 import com.iitm.roster.security.AuthorizationPolicy;
 import com.iitm.roster.security.Decision;
@@ -23,14 +19,10 @@ import com.iitm.roster.service.EditResult;
 import com.iitm.roster.service.RosterService;
 import java.time.Clock;
 import java.time.Instant;
-import java.time.LocalDate;
 import java.time.YearMonth;
-import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Map;
 import java.util.Objects;
-import java.util.Optional;
 import java.util.UUID;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -41,8 +33,6 @@ import org.springframework.transaction.annotation.Transactional;
  * <p>Approval moves both assignments through {@link RosterService#applyEdits}. A night moves
  * with that day's Shift I ward duty, because the night doctor is also the ward doctor.
  * Post-duty off is not stored; it is the day after a night, so it follows the night.
- * A night given away by someone on short leave (at most {@link NightRotation#LONG_LEAVE_DAYS}
- * days) can only go to the doctor {@link NightRotation} would have put there.
  *
  * <p>An open request whose earlier shift has started becomes {@code LAPSED}. The roster
  * is left untouched.
@@ -53,16 +43,14 @@ public class SwapLifecycle {
 	private final RosterService edits;
 	private final RosterStore rosters;
 	private final SwapRequestStore requests;
-	private final MonthInputStore inputs;
 	private final AuthorizationPolicy policy;
 	private final Clock clock;
 
-	public SwapLifecycle(RosterService edits, RosterStore rosters, SwapRequestStore requests, MonthInputStore inputs,
+	public SwapLifecycle(RosterService edits, RosterStore rosters, SwapRequestStore requests,
 			AuthorizationPolicy policy, Clock clock) {
 		this.edits = edits;
 		this.rosters = rosters;
 		this.requests = requests;
-		this.inputs = inputs;
 		this.policy = policy;
 		this.clock = clock;
 	}
@@ -87,10 +75,6 @@ public class SwapLifecycle {
 		SwapResult denied = denial(policy.may(actor, new Action.ProposeSwap(offered, wanted), roster));
 		if (denied != null) {
 			return denied;
-		}
-		Optional<String> shortLeave = shortLeaveProblem(offered, wanted);
-		if (shortLeave.isPresent()) {
-			return new SwapResult.Refused(shortLeave.get());
 		}
 		SwapRequest request = new SwapRequest(UUID.randomUUID().toString(), offered, wanted, RequestState.PENDING,
 				clock.instant());
@@ -246,56 +230,6 @@ public class SwapLifecycle {
 					from.staff().id() + " is on nights on " + from.slot().date() + " but is not the ward doctor");
 		}
 		commands.add(new EditCommand.Move(wardSlot, from.staff().id(), to.id()));
-	}
-
-	/**
-	 * When the doctor giving away a night is on short leave that day, the doctor taking it
-	 * must be the one the rotation would assign. Months with no stored input are not checked
-	 * (there is no rotation order to follow).
-	 */
-	private Optional<String> shortLeaveProblem(Assignment offered, Assignment wanted) {
-		YearMonth month = YearMonth.from(offered.slot().date());
-		Optional<StoredMonthInput> stored = inputs.findByMonth(month);
-		if (stored.isEmpty()) {
-			return Optional.empty();
-		}
-		StoredMonthInput input = stored.get();
-		Map<LocalDate, Staff> planned = NightRotation.plan(input.month(), input.doctors(), input.firstOnNights(),
-				input.leaves());
-		Optional<String> offeredProblem = nightProblem(offered, wanted.staff(), input.leaves(), planned);
-		if (offeredProblem.isPresent()) {
-			return offeredProblem;
-		}
-		return nightProblem(wanted, offered.staff(), input.leaves(), planned);
-	}
-
-	private static Optional<String> nightProblem(Assignment night, Staff receiver, List<Leave> leaves,
-			Map<LocalDate, Staff> planned) {
-		if (!night.slot().shift().equals(StandardShifts.NIGHT) || !onShortLeave(night.staff(), night.slot().date(), leaves)) {
-			return Optional.empty();
-		}
-		Staff expected = planned.get(night.slot().date());
-		if (receiver.equals(expected)) {
-			return Optional.empty();
-		}
-		String who = expected == null ? "nobody" : expected.id();
-		return Optional.of("a short-leave night on " + night.slot().date() + " goes to " + who
-				+ " in the rotation, not " + receiver.id());
-	}
-
-	/** Short leave is at most {@link NightRotation#LONG_LEAVE_DAYS} days, the same line the rotation uses. */
-	private static boolean onShortLeave(Staff doctor, LocalDate day, List<Leave> leaves) {
-		boolean covered = false;
-		for (Leave leave : leaves) {
-			if (!leave.staff().equals(doctor) || !leave.covers(day)) {
-				continue;
-			}
-			if (ChronoUnit.DAYS.between(leave.firstDay(), leave.lastDay()) + 1 > NightRotation.LONG_LEAVE_DAYS) {
-				return false;
-			}
-			covered = true;
-		}
-		return covered;
 	}
 
 	private boolean started(SwapRequest request) {

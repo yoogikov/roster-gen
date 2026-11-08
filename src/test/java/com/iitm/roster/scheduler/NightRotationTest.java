@@ -65,21 +65,48 @@ class NightRotationTest {
 	}
 
 	@Test
-	void exactlyTenDaysIsStillShortLeave() {
+	void leaveAsLongAsTheRotationIsStillShortLeave() {
 		List<Staff> doctors = doctors(3);
-		Map<LocalDate, Staff> nights = NightRotation.plan(OCTOBER, doctors, doctors.get(0), List.of(leave(doctors.get(0), 1, 10)));
+		Map<LocalDate, Staff> nights = NightRotation.plan(OCTOBER, doctors, doctors.get(0), List.of(leave(doctors.get(0), 1, 3)));
 
 		// D01 keeps being swapped forward and does the first night after the leave.
-		assertThat(nights.get(OCTOBER.atDay(11)).id()).isEqualTo("D01");
-		assertThat(ids(nights, 1, 10)).doesNotContain("D01");
+		assertThat(nights.get(OCTOBER.atDay(4)).id()).isEqualTo("D01");
+		assertThat(ids(nights, 1, 3)).doesNotContain("D01");
 	}
 
 	@Test
-	void longLeaveMeansMoreThanTenDaysCountingBothEnds() {
+	void longLeaveMeansMoreDaysThanThereAreDoctorsCountingBothEnds() {
 		Staff doctor = doctors(1).get(0);
 
-		assertThat(NightRotation.isLong(leave(doctor, 1, 10))).isFalse();
-		assertThat(NightRotation.isLong(leave(doctor, 1, 11))).isTrue();
+		assertThat(NightRotation.isLong(leave(doctor, 1, 3), 3)).isFalse();
+		assertThat(NightRotation.isLong(leave(doctor, 1, 4), 3)).isTrue();
+		assertThat(NightRotation.isLong(leave(doctor, 1, 11), 11)).isFalse();
+		assertThat(NightRotation.isLong(leave(doctor, 1, 12), 11)).isTrue();
+	}
+
+	@Test
+	void aShortLeaveNamesTheOneNightMissedAndWhoIsPencilledIn() {
+		List<Staff> doctors = doctors(4);
+		// D02's turn is the 2nd. D03 does it, and D02's turn passing on over the 3rd is not a second missed night.
+		List<NightRotation.Cover> covers = NightRotation.covers(OCTOBER, doctors, doctors.get(0),
+				List.of(leave(doctors.get(1), 2, 3)), null);
+
+		assertThat(covers).containsExactly(new NightRotation.Cover(OCTOBER.atDay(2), doctors.get(1), doctors.get(2)));
+	}
+
+	@Test
+	void noCoverToArrangeWhenLeaveMissesNoTurnOrIsLong() {
+		List<Staff> doctors = doctors(4);
+
+		assertThat(NightRotation.covers(OCTOBER, doctors, doctors.get(0), List.of(leave(doctors.get(3), 1, 2)), null)).isEmpty();
+		assertThat(NightRotation.covers(OCTOBER, doctors, doctors.get(0), List.of(leave(doctors.get(1), 3, 14)), null)).isEmpty();
+	}
+
+	@Test
+	void theDoctorMovedOffTheFirstBecauseOfLastMonthsNightHasNoCoverToArrange() {
+		List<Staff> doctors = doctors(3);
+
+		assertThat(NightRotation.covers(OCTOBER, doctors, doctors.get(0), List.of(), doctors.get(0))).isEmpty();
 	}
 
 	@Test

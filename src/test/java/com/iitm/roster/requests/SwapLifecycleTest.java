@@ -281,53 +281,17 @@ class SwapLifecycleTest {
 	}
 
 	@Test
-	void aShortLeaveNightGoesToTheNextDoctorInTheRotation() {
-		LocalDate from = NOVEMBER.atDay(10);
-		LocalDate to = NOVEMBER.atDay(19);
-		List<Leave> leaves = List.of(new Leave(D01, from, to));
-		assertThat(ChronoUnit.DAYS.between(from, to) + 1).isEqualTo(NightRotation.LONG_LEAVE_DAYS);
+	void aNightCanBeSwappedWithAnyoneEvenWhenAShortLeaveCoversIt() {
+		List<Leave> leaves = List.of(new Leave(D01, NOVEMBER.atDay(19), NOVEMBER.atDay(20)));
 		inputs.save(new StoredMonthInput(NOVEMBER, List.of(D01, D02, D03), D01, leaves, HospitalCalendar.noHolidays(), 4, 2));
-		Map<LocalDate, Staff> planned = NightRotation.plan(NOVEMBER, List.of(D01, D02, D03), D01, leaves);
+		Assignment nightDuty = new Assignment(slot(NOVEMBER.atDay(19), StandardShifts.NIGHT), D01, Post.GENERAL);
+		Assignment ward = new Assignment(slot(NOVEMBER.atDay(19), StandardShifts.SHIFT_I), D01, Post.WARD);
+		Assignment first = shift(NOVEMBER.atDay(27), D02);
+		Assignment second = shift(NOVEMBER.atDay(28), D03);
+		save(nightDuty, ward, first, second);
 
-		LocalDate night = null;
-		for (LocalDate day = from; !day.isAfter(to); day = day.plusDays(1)) {
-			Staff doctor = planned.get(day);
-			if (doctor != null && !doctor.equals(D01)) {
-				night = day;
-				break;
-			}
-		}
-		assertThat(night).isNotNull();
-		Staff expected = planned.get(night);
-		Staff other = expected.equals(D02) ? D03 : D02;
-		Assignment nightDuty = new Assignment(slot(night, StandardShifts.NIGHT), D01, Post.GENERAL);
-		Assignment ward = new Assignment(slot(night, StandardShifts.SHIFT_I), D01, Post.WARD);
-		Assignment expectedShift = shift(NOVEMBER.atDay(27), expected);
-		Assignment otherShift = shift(NOVEMBER.atDay(28), other);
-		save(nightDuty, ward, expectedShift, otherShift);
-
-		SwapResult refused = swaps.propose(nightDuty, otherShift, ADMIN);
-		assertThat(refused).isInstanceOf(SwapResult.Refused.class);
-		assertThat(((SwapResult.Refused) refused).reason()).contains(expected.id());
-		assertThat(requests.findOpen()).isEmpty();
-
-		assertThat(swaps.propose(nightDuty, expectedShift, ADMIN)).isInstanceOf(SwapResult.Pending.class);
-	}
-
-	@Test
-	void aLongLeaveNightIsNotForcedOntoTheRotation() {
-		List<Leave> leaves = List.of(new Leave(D01, NOVEMBER.atDay(10), NOVEMBER.atDay(20)));
-		List<Staff> order = List.of(D01, D02, D03);
-		inputs.save(new StoredMonthInput(NOVEMBER, order, D01, leaves, HospitalCalendar.noHolidays(), 4, 2));
-		LocalDate night = NOVEMBER.atDay(19);
-		Staff planned = NightRotation.plan(NOVEMBER, order, D01, leaves).get(night);
-		Staff other = D03.equals(planned) ? D02 : D03;
-		Assignment nightDuty = new Assignment(slot(night, StandardShifts.NIGHT), D01, Post.GENERAL);
-		Assignment ward = new Assignment(slot(night, StandardShifts.SHIFT_I), D01, Post.WARD);
-		Assignment otherShift = shift(NOVEMBER.atDay(27), other);
-		save(nightDuty, ward, otherShift);
-
-		assertThat(swaps.propose(nightDuty, otherShift, ADMIN)).isInstanceOf(SwapResult.Pending.class);
+		assertThat(swaps.propose(nightDuty, first, ADMIN)).isInstanceOf(SwapResult.Pending.class);
+		assertThat(swaps.propose(nightDuty, second, ADMIN)).isInstanceOf(SwapResult.Pending.class);
 	}
 
 	@Test
@@ -343,7 +307,7 @@ class SwapLifecycleTest {
 
 	private SwapLifecycle lifecycle(Clock clock) {
 		RosterService edits = new RosterService(rosters, staff, audit, month -> active, clock);
-		return new SwapLifecycle(edits, rosters, requests, inputs, new HospitalAuthorizationPolicy(clock), clock);
+		return new SwapLifecycle(edits, rosters, requests, new HospitalAuthorizationPolicy(clock), clock);
 	}
 
 	private String acceptedId(Assignment offered, Assignment wanted) {

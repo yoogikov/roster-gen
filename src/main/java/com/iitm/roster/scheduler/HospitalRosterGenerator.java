@@ -50,6 +50,19 @@ public final class HospitalRosterGenerator {
 		this.night = night;
 	}
 
+	/** The nights in {@code input}'s month that doctors on short leave must arrange. */
+	public List<NightRotation.Cover> nightCovers(MonthInput input) {
+		return NightRotation.covers(input.month(), input.doctors(), input.firstOnNights(), input.leaves(), nightBefore(input));
+	}
+
+	private Staff nightBefore(MonthInput input) {
+		return input.carriedIn().stream()
+				.filter(a -> a.slot().shift().equals(night) && a.slot().date().equals(input.month().atDay(1).minusDays(1)))
+				.map(Assignment::staff)
+				.findFirst()
+				.orElse(null);
+	}
+
 	/** The night shift this generator rosters. */
 	public ShiftType night() {
 		return night;
@@ -59,11 +72,7 @@ public final class HospitalRosterGenerator {
 		StaffingPlan dayShifts = staffing(input);
 		List<Constraint> constraints = constraints(input);
 
-		Staff nightBefore = input.carriedIn().stream()
-				.filter(a -> a.slot().shift().equals(night) && a.slot().date().equals(input.month().atDay(1).minusDays(1)))
-				.map(Assignment::staff)
-				.findFirst()
-				.orElse(null);
+		Staff nightBefore = nightBefore(input);
 		Map<LocalDate, Staff> nights = NightRotation.plan(input.month(), input.doctors(), input.firstOnNights(), input.leaves(),
 				nightBefore);
 		Map<LocalDate, Staff> nightsAndTheOneBefore = new HashMap<>(nights);

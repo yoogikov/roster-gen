@@ -10,22 +10,26 @@ import java.time.YearMonth;
 import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
 import java.util.Comparator;
+import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
+import java.util.Set;
 
 /**
  * Plans who does nights, following the CMO's fixed rotation.
  *
  * <ul>
  *   <li>Doctors take nights in a fixed cyclic order, one per day.
- *   <li>Short leave (at most {@value #LONG_LEAVE_DAYS} days): if it is someone's turn while
- *       they are on leave, they swap places in the order with the next doctor who can do it,
- *       and the order otherwise carries on.
- *   <li>Long leave (more than {@value #LONG_LEAVE_DAYS} days): the doctor is taken out of the
- *       order from the first day of leave, and put back in on the day they return, doing that
+ *   <li>Short leave (no more days than there are doctors in the rotation, so at most one turn is
+ *       missed): if it is someone's turn while they are on leave, they swap places in the order
+ *       with the next doctor who can do it, and the order otherwise carries on. That doctor is
+ *       only pencilled in: arranging the swap is the responsibility of the doctor on leave, who
+ *       is named in {@link #covers}.
+ *   <li>Long leave (more days than there are doctors in the rotation): the doctor is taken out of
+ *       the order from the first day of leave, and put back in on the day they return, doing that
  *       night themselves.
  * </ul>
  *
@@ -33,8 +37,15 @@ import java.util.Optional;
  */
 public final class NightRotation {
 
-	/** Leave longer than this takes a doctor out of the rotation. */
-	public static final int LONG_LEAVE_DAYS = 10;
+	/**
+	 * A night a doctor misses through short leave: {@code away}'s turn on {@code date}, with
+	 * {@code pencilledIn} put there until {@code away} arranges the swap.
+	 */
+	public record Cover(LocalDate date, Staff away, Staff pencilledIn) {
+	}
+
+	private record Walk(Map<LocalDate, Staff> nights, List<Cover> covers) {
+	}
 
 	private NightRotation() {
 	}
@@ -55,19 +66,35 @@ public final class NightRotation {
 	 */
 	public static Map<LocalDate, Staff> plan(YearMonth month, List<Staff> order, Staff firstOnNights, List<Leave> leaves,
 			Staff nightBefore) {
+		return walk(month, order, firstOnNights, leaves, nightBefore).nights();
+	}
+
+	/**
+	 * The nights in {@link #plan(YearMonth, List, Staff, List, Staff)} that doctors on short leave
+	 * must arrange, one for each leave that misses a turn, in date order.
+	 */
+	public static List<Cover> covers(YearMonth month, List<Staff> order, Staff firstOnNights, List<Leave> leaves,
+			Staff nightBefore) {
+		return walk(month, order, firstOnNights, leaves, nightBefore).covers();
+	}
+
+	private static Walk walk(YearMonth month, List<Staff> order, Staff firstOnNights, List<Leave> leaves, Staff nightBefore) {
 		int start = order.indexOf(Objects.requireNonNull(firstOnNights, "firstOnNights"));
 		if (start < 0) {
 			throw new IllegalArgumentException(firstOnNights.name() + " is not in the night rotation");
 		}
 		List<Staff> cycle = new ArrayList<>(order.subList(start, order.size()));
 		cycle.addAll(order.subList(0, start));
+		List<Leave> longLeaves = leaves.stream().filter(leave -> isLong(leave, order.size())).toList();
 
 		Map<LocalDate, Staff> nights = new LinkedHashMap<>();
+		List<Cover> covers = new ArrayList<>();
+		Set<Leave> alreadyCovered = new HashSet<>();
 		List<Staff> outOnLongLeave = new ArrayList<>();
 		int position = 0;
 		for (LocalDate day = month.atDay(1); !day.isAfter(month.atEndOfMonth()); day = day.plusDays(1)) {
-			position = takeOutLongLeave(cycle, outOnLongLeave, day, leaves, position);
-			Staff returning = returningOn(outOnLongLeave, day, leaves);
+			position = takeOutLongLeave(cycle, outOnLongLeave, day, longLeaves, position);
+			Staff returning = returningOn(outOnLongLeave, day, leaves, longLeaves);
 			if (returning != null) {
 				outOnLongLeave.remove(returning);
 				cycle.add(position, returning);
@@ -80,11 +107,17 @@ public final class NightRotation {
 			if (available < 0) {
 				continue;
 			}
+			Staff turn = cycle.get(position);
 			swap(cycle, position, available);
-			nights.put(day, cycle.get(position));
+			Staff onNight = cycle.get(position);
+			nights.put(day, onNight);
+			final LocalDate tonight = day;
+			leaves.stream().filter(leave -> leave.staff().equals(turn) && leave.covers(tonight)).findFirst()
+					.filter(alreadyCovered::add)
+					.ifPresent(leave -> covers.add(new Cover(tonight, turn, onNight)));
 			position = (position + 1) % cycle.size();
 		}
-		return nights;
+		return new Walk(nights, covers);
 	}
 
 	/**
@@ -112,11 +145,11 @@ public final class NightRotation {
 	}
 
 	/** Removes everyone whose long leave covers {@code day}; returns the adjusted position. */
-	private static int takeOutLongLeave(List<Staff> cycle, List<Staff> out, LocalDate day, List<Leave> leaves, int position) {
+	private static int takeOutLongLeave(List<Staff> cycle, List<Staff> out, LocalDate day, List<Leave> longLeaves, int position) {
 		int adjusted = position;
 		for (int i = cycle.size() - 1; i >= 0; i--) {
 			Staff doctor = cycle.get(i);
-			if (onLongLeave(doctor, day, leaves)) {
+			if (onAnyLeave(doctor, day, longLeaves)) {
 				cycle.remove(i);
 				out.add(doctor);
 				if (i < adjusted) {
@@ -127,10 +160,10 @@ public final class NightRotation {
 		return adjusted;
 	}
 
-	private static Staff returningOn(List<Staff> out, LocalDate day, List<Leave> leaves) {
+	private static Staff returningOn(List<Staff> out, LocalDate day, List<Leave> leaves, List<Leave> longLeaves) {
 		for (Staff doctor : out) {
-			boolean leaveEndedYesterday = leaves.stream().anyMatch(l -> l.staff().equals(doctor)
-					&& isLong(l) && l.lastDay().plusDays(1).equals(day));
+			boolean leaveEndedYesterday = longLeaves.stream().anyMatch(l -> l.staff().equals(doctor)
+					&& l.lastDay().plusDays(1).equals(day));
 			if (leaveEndedYesterday && !onAnyLeave(doctor, day, leaves)) {
 				return doctor;
 			}
@@ -160,13 +193,9 @@ public final class NightRotation {
 		cycle.set(b, first);
 	}
 
-	/** More than {@value #LONG_LEAVE_DAYS} days, counting both the first and the last day. */
-	static boolean isLong(Leave leave) {
-		return ChronoUnit.DAYS.between(leave.firstDay(), leave.lastDay()) + 1 > LONG_LEAVE_DAYS;
-	}
-
-	private static boolean onLongLeave(Staff doctor, LocalDate day, List<Leave> leaves) {
-		return leaves.stream().anyMatch(l -> l.staff().equals(doctor) && isLong(l) && l.covers(day));
+	/** More days than there are doctors in the rotation, counting both the first and the last day. */
+	static boolean isLong(Leave leave, int doctorsInRotation) {
+		return ChronoUnit.DAYS.between(leave.firstDay(), leave.lastDay()) + 1 > doctorsInRotation;
 	}
 
 	private static boolean onAnyLeave(Staff doctor, LocalDate day, List<Leave> leaves) {

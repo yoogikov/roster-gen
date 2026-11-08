@@ -10,12 +10,27 @@
 <h1>Requests</h1>
 <p class="notice" th:if="${notice}" th:text="${notice}"></p>
 
+<div th:if="${staff}">
+	<h2>My requests</h2>
+	<p th:if="${#lists.isEmpty(mine.swaps) and #lists.isEmpty(mine.changes) and #lists.isEmpty(mine.leaves)}">You have no requests yet.</p>
+	<ul>
+		<li th:each="swap : ${mine.swaps}"
+				th:text="'Swap: ' + ${swap.offered.staff.name} + ' ' + ${swap.offered.slot.shift.code} + ' ' + ${swap.offered.slot.date}
+					+ ' for ' + ${swap.wanted.staff.name} + ' ' + ${swap.wanted.slot.shift.code} + ' ' + ${swap.wanted.slot.date}
+					+ ' — ' + ${swap.state}">my swap</li>
+		<li th:each="change : ${mine.changes}"
+				th:text="'Edit: ' + ${change.type} + ' ' + ${change.shiftCode} + ' on ' + ${change.date} + ' — ' + ${change.state}">my edit</li>
+		<li th:each="leave : ${mine.leaves}"
+				th:text="'Leave: ' + ${leave.firstDay} + ' to ' + ${leave.lastDay} + ' — ' + ${leave.state}">my leave</li>
+	</ul>
+</div>
+
 <h2>Swaps</h2>
 <p th:if="${#lists.isEmpty(open.swaps)}">No open swaps.</p>
 <ul>
 	<li th:each="swap : ${open.swaps}">
-		<span th:text="${swap.offered.staff.id} + ' ' + ${swap.offered.slot.shift.code} + ' ' + ${swap.offered.slot.date}
-			+ ' for ' + ${swap.wanted.staff.id} + ' ' + ${swap.wanted.slot.shift.code} + ' ' + ${swap.wanted.slot.date}
+		<span th:text="${swap.offered.staff.name} + ' ' + ${swap.offered.slot.shift.code} + ' ' + ${swap.offered.slot.date}
+			+ ' for ' + ${swap.wanted.staff.name} + ' ' + ${swap.wanted.slot.shift.code} + ' ' + ${swap.wanted.slot.date}
 			+ ' (' + ${swap.state} + ')'">swap</span>
 		<form th:if="${swap.state.name() == 'PENDING' and swap.wanted.staff.id == actor.staffId().orElse('')}"
 				method="post" th:action="@{'/inbox/swaps/' + ${swap.id} + '/accept'}">
@@ -34,7 +49,7 @@
 <p th:if="${#lists.isEmpty(open.changes)}">No stored edits.</p>
 <ul>
 	<li th:each="change : ${open.changes}">
-		<span th:text="${change.type} + ' ' + ${change.shiftCode} + ' ' + ${change.date} + ' ' + ${change.month}">edit</span>
+		<span th:text="${change.type} + ' ' + ${change.shiftCode} + ' on ' + ${change.date}">edit</span>
 		<form th:if="${admin}" method="post" th:action="@{'/inbox/changes/' + ${change.id} + '/approve'}">
 			<button type="submit">Approve</button>
 		</form>
@@ -48,7 +63,7 @@
 <p th:if="${#lists.isEmpty(open.leaves)}">No leave requests.</p>
 <ul>
 	<li th:each="leave : ${open.leaves}">
-		<span th:text="${leave.staff.id} + ' ' + ${leave.firstDay} + ' to ' + ${leave.lastDay}">leave</span>
+		<span th:text="${leave.staff.name} + ' ' + ${leave.firstDay} + ' to ' + ${leave.lastDay}">leave</span>
 		<form th:if="${admin}" method="post" th:action="@{'/inbox/leaves/' + ${leave.id} + '/approve'}">
 			<button type="submit">Approve</button>
 		</form>

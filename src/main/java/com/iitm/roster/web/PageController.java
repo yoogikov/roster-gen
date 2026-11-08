@@ -2,11 +2,13 @@ package com.iitm.roster.web;
 
 import com.iitm.roster.constraints.Violation;
 import com.iitm.roster.domain.Actor;
+import com.iitm.roster.domain.Assignment;
 import com.iitm.roster.domain.HospitalCalendar;
 import com.iitm.roster.domain.Leave;
 import com.iitm.roster.domain.Post;
 import com.iitm.roster.domain.Role;
 import com.iitm.roster.domain.Roster;
+import com.iitm.roster.domain.RosterStatus;
 import com.iitm.roster.domain.Staff;
 import com.iitm.roster.domain.StaffRole;
 import com.iitm.roster.requests.ChangeLifecycle;
@@ -137,7 +139,10 @@ public class PageController {
 			model.addAttribute("month", month);
 			return "roster";
 		}
-		boolean canEdit = current.get().role() == Role.ADMIN;
+		Actor actor = current.get();
+		boolean canEdit = actor.role() == Role.ADMIN;
+		boolean staffForms = actor.role() == Role.STAFF && roster.status() == RosterStatus.PUBLISHED
+				&& actor.staffId().isPresent();
 		model.addAttribute("month", month);
 		model.addAttribute("status", roster.status().name());
 		model.addAttribute("rows", RosterGrid.rows(roster));
@@ -146,25 +151,56 @@ public class PageController {
 		model.addAttribute("owedToMonth", yearMonth.plusMonths(1).toString());
 		model.addAttribute("owedTo", owedNames(generation.owedOffsAfter(yearMonth)));
 		model.addAttribute("canEdit", canEdit);
+		model.addAttribute("staffForms", staffForms);
+		model.addAttribute("doctors", staff.findActive());
+		if (staffForms) {
+			String staffId = actor.staffId().orElseThrow();
+			model.addAttribute("myShifts", SheetShifts.mine(roster, staffId));
+			model.addAttribute("otherShifts", SheetShifts.others(roster, staffId));
+		}
 		model.addAttribute("missing", false);
 		return "roster";
 	}
 
 	@PostMapping("/rosters/{month}/edits")
 	String edit(@PathVariable String month, @RequestParam String type, @RequestParam LocalDate date,
-			@RequestParam String shift, @RequestParam String staffId, @RequestParam(defaultValue = "GENERAL") Post post,
+			@RequestParam String shift, @RequestParam(required = false) String staffId,
+			@RequestParam(required = false) String fromStaffId, @RequestParam(required = false) String toStaffId,
+			@RequestParam(defaultValue = "GENERAL") Post post, Model model) {
+		String notice;
+		try {
+			EditBody body = new EditBody(type, date, shift, staffId, fromStaffId, toStaffId, post);
+			EditCommand command = body.toCommand();
+			YearMonth yearMonth = YearMonth.parse(month);
+			Roster roster = query.find(yearMonth).orElseThrow(() -> new IllegalArgumentException("no roster for " + month));
+			Actor actor = current.get();
+			Decision decision = policy.may(actor, new Action.EditShift(command.slot(), body.staffIds()), roster);
+			notice = switch (decision) {
+				case Decision.Allow() -> applied(edits.applyEdit(command, actor));
+				case Decision.RequiresApproval needs -> needs.approver() + ": " + filed(changes.file(command, actor));
+				case Decision.Deny deny -> deny.reason();
+			};
+		} catch (RuntimeException ex) {
+			notice = ex.getMessage();
+		}
+		roster(month, model);
+		model.addAttribute("notice", notice);
+		return "roster";
+	}
+
+	@PostMapping("/rosters/{month}/swaps")
+	String proposeSwap(@PathVariable String month, @RequestParam String offered, @RequestParam String wanted,
 			Model model) {
-		EditBody body = new EditBody(type, date, shift, staffId, null, null, post);
-		EditCommand command = body.toCommand();
-		YearMonth yearMonth = YearMonth.parse(month);
-		Roster roster = query.find(yearMonth).orElseThrow(() -> new IllegalArgumentException("no roster for " + month));
-		Actor actor = current.get();
-		Decision decision = policy.may(actor, new Action.EditShift(command.slot(), body.staffIds()), roster);
-		String notice = switch (decision) {
-			case Decision.Allow() -> applied(edits.applyEdit(command, actor));
-			case Decision.RequiresApproval needs -> needs.approver() + ": " + filed(changes.file(command, actor));
-			case Decision.Deny deny -> deny.reason();
-		};
+		String notice;
+		try {
+			YearMonth yearMonth = YearMonth.parse(month);
+			Roster roster = query.find(yearMonth).orElseThrow(() -> new IllegalArgumentException("no roster for " + month));
+			Assignment offer = SheetShifts.parse(roster, offered);
+			Assignment want = SheetShifts.parse(roster, wanted);
+			notice = text(swaps.propose(offer, want, current.get()));
+		} catch (RuntimeException ex) {
+			notice = ex.getMessage();
+		}
 		roster(month, model);
 		model.addAttribute("notice", notice);
 		return "roster";
@@ -202,9 +238,12 @@ public class PageController {
 
 	@GetMapping("/inbox")
 	String inbox(Model model) {
+		Actor actor = current.get();
 		model.addAttribute("open", inbox.open());
+		model.addAttribute("mine", inbox.mine(actor));
 		model.addAttribute("admin", admin());
-		model.addAttribute("actor", current.get());
+		model.addAttribute("actor", actor);
+		model.addAttribute("staff", actor.role() == Role.STAFF);
 		return "inbox";
 	}
 
@@ -390,20 +429,20 @@ public class PageController {
 
 	private static String filed(ChangeResult result) {
 		return switch (result) {
-			case ChangeResult.Pending pending -> "stored for approval " + pending.request().id();
+			case ChangeResult.Pending pending -> "stored for approval: " + changeText(pending.request());
 			case ChangeResult.NotAllowed notAllowed -> decisionText(notAllowed.decision());
-			case ChangeResult.Approved approved -> "approved " + approved.request().id();
-			case ChangeResult.Rejected rejected -> "rejected " + rejected.request().id();
+			case ChangeResult.Approved approved -> "approved: " + changeText(approved.request());
+			case ChangeResult.Rejected rejected -> "rejected: " + changeText(rejected.request());
 			case ChangeResult.EditRejected editRejected -> editRejected.edit().violations().get(0).message();
 		};
 	}
 
 	private static String text(SwapResult result) {
 		return switch (result) {
-			case SwapResult.Pending pending -> pending.request().state().name();
-			case SwapResult.Accepted accepted -> accepted.request().state().name();
-			case SwapResult.Approved approved -> approved.request().state().name();
-			case SwapResult.Rejected rejected -> rejected.request().state().name();
+			case SwapResult.Pending pending -> "swap proposed: " + swapText(pending.request());
+			case SwapResult.Accepted accepted -> "swap accepted: " + swapText(accepted.request());
+			case SwapResult.Approved approved -> "swap approved: " + swapText(approved.request());
+			case SwapResult.Rejected rejected -> "swap rejected: " + swapText(rejected.request());
 			case SwapResult.NotAllowed notAllowed -> decisionText(notAllowed.decision());
 			case SwapResult.Refused refused -> refused.reason();
 			case SwapResult.EditRejected editRejected -> editRejected.edit().violations().get(0).message();
@@ -416,12 +455,28 @@ public class PageController {
 
 	private static String text(LeaveResult result) {
 		return switch (result) {
-			case LeaveResult.Pending pending -> "leave requested " + pending.request().id();
+			case LeaveResult.Pending pending -> "leave requested for " + pending.request().staff().name() + " from "
+					+ pending.request().firstDay() + " to " + pending.request().lastDay();
 			case LeaveResult.Approved approved -> approvedText(approved);
-			case LeaveResult.Rejected rejected -> "leave rejected " + rejected.request().id();
+			case LeaveResult.Rejected rejected -> "leave rejected for " + rejected.request().staff().name() + " from "
+					+ rejected.request().firstDay() + " to " + rejected.request().lastDay();
 			case LeaveResult.NotAllowed notAllowed -> decisionText(notAllowed.decision());
 			case LeaveResult.Refused refused -> refused.reason();
 		};
+	}
+
+	private static String swapText(com.iitm.roster.domain.SwapRequest request) {
+		return assignmentText(request.offered()) + " for " + assignmentText(request.wanted());
+	}
+
+	private static String assignmentText(Assignment assignment) {
+		return assignment.staff().name() + " " + assignment.slot().shift().code() + " on " + assignment.slot().date();
+	}
+
+	private static String changeText(com.iitm.roster.domain.ChangeRequest request) {
+		String who = request.staffId() != null ? request.staffId()
+				: request.fromStaffId() + " → " + request.toStaffId();
+		return request.type() + " " + request.shiftCode() + " on " + request.date() + " (" + who + ")";
 	}
 
 	private static String brokenText(List<Violation> broken) {
@@ -450,14 +505,15 @@ public class PageController {
 	}
 
 	private static String approvedText(LeaveResult.Approved approved) {
-		String text = "leave approved " + approved.request().id();
+		String text = "leave approved for " + approved.request().staff().name() + " from "
+				+ approved.request().firstDay() + " to " + approved.request().lastDay();
 		if (approved.regenerated()) {
 			return text + "; the draft roster was generated again with it";
 		}
 		if (approved.freed().isEmpty()) {
 			return text;
 		}
-		return text + "; " + approved.request().staff().id() + " was taken off " + approved.freed().size()
+		return text + "; " + approved.request().staff().name() + " was taken off " + approved.freed().size()
 				+ " shifts, now to fill: " + approved.freed().stream()
 						.map(assignment -> assignment.slot().date() + " " + assignment.slot().shift().code())
 						.collect(Collectors.joining(", "));

@@ -9,4 +9,7 @@ interface SwapRequestJpaRepository extends JpaRepository<SwapRequestEntity, Stri
 
 	List<SwapRequestEntity> findByStateInOrderByCreatedAtAsc(Collection<RequestState> states);
 
+	List<SwapRequestEntity> findByOffered_Staff_IdOrWanted_Staff_IdOrderByCreatedAtDesc(String offeredStaffId,
+			String wantedStaffId);
+
 }

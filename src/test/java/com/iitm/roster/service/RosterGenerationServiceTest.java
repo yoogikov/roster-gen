@@ -234,6 +234,7 @@ class RosterGenerationServiceTest {
 		assertThat(roster.weeklyOffs()).filteredOn(off -> off.date().isBefore(january.atDay(4)))
 				.extracting(DayOff::staff).containsExactlyInAnyOrderElementsOf(owed);
 		assertThat(generation.owedOffsAfter(january)).isEmpty();
+		assertThat(generation.owedOffsInto(january)).containsExactlyElementsOf(owed);
 		assertThat(generation.brokenRules(january)).isEmpty();
 	}
 
@@ -264,6 +265,22 @@ class RosterGenerationServiceTest {
 
 		// Five counted weeks in December and four in January, with no offs at all.
 		assertThat(generation.owedOffsAfter(january)).hasSize(9);
+	}
+
+	@Test
+	void aDoctorNoLongerOnTheListIsNotOwedIntoTheMonth() {
+		YearMonth december = YearMonth.of(2026, 12);
+		YearMonth january = december.plusMonths(1);
+		List<Staff> doctors = doctors(11);
+		generation.generate(month(december, doctors), ADMIN);
+		Staff leaving = generation.owedOffsAfter(december).get(0);
+		List<Staff> staying = new ArrayList<>(doctors);
+		staying.remove(leaving);
+
+		generation.generate(month(january, staying), ADMIN);
+
+		assertThat(generation.owedOffsInto(january)).hasSize(2).doesNotContain(leaving);
+		assertThat(generation.owedOffsInto(YearMonth.of(2030, 1))).isEmpty();
 	}
 
 	@Test

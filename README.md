@@ -136,7 +136,7 @@ as `admin` with `ROSTER_ADMIN_PASSWORD`.
 ## Weekly offs that do not fit
 
 A doctor who cannot get a weekly off in a week, because the week has no room, is owed one.
-The Generate result and the audit log name who is owed, and generating the next month gives
+The Generate result, the roster sheet and the audit log name who is owed, and generating the next month gives
 each owed off as an extra on the earliest day with room. An off no day can take stays owed.
 
 ## Generate a roster from a doctor list

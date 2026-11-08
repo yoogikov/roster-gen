@@ -68,6 +68,13 @@ class GenerateRosterTest {
 	}
 
 	@Test
+	void saysWhichWeeklyOffsAreOwedToNextMonth() throws IOException {
+		assertThat(run(fixture().toString(), "2026-12", "--out", dir.resolve("roster.csv").toString())).isZero();
+
+		assertThat(err()).contains("weekly offs owed to next month: Test Doctor 8, Test Doctor 9, Test Doctor 11");
+	}
+
+	@Test
 	void aBadDoctorListNamesTheFileAndLine() throws IOException {
 		Path doctors = dir.resolve("bad.csv");
 		Files.writeString(doctors, "id,name,leave\nD01,Test Doctor 1,7 Oct\n");

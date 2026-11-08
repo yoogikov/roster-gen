@@ -24,6 +24,10 @@ import java.util.Objects;
  * then Friday, then Monday, then any other day of the week. A day is only used if the
  * doctor is not on leave, not on nights and not post-duty off that day, and enough doctors
  * are left to staff that day's day shifts.
+ *
+ * <p>Offs owed from earlier months come after every week's own off, so they never take a week's
+ * own place: each goes on the earliest day of the month that can take it. One that fits nowhere
+ * stays owed.
  */
 public final class WeeklyOffPlanner {
 
@@ -38,6 +42,16 @@ public final class WeeklyOffPlanner {
 	}
 
 	public List<DayOff> plan(YearMonth month, List<Staff> doctors, Map<LocalDate, Staff> nights, List<Leave> leaves) {
+		return plan(month, doctors, nights, leaves, List.of());
+	}
+
+	/**
+	 * @param nights who does each night; include the last night of the month before, so that
+	 *        doctor gets no off on the 1st
+	 * @param owed offs owed from earlier months; a doctor owed two appears twice
+	 */
+	public List<DayOff> plan(YearMonth month, List<Staff> doctors, Map<LocalDate, Staff> nights, List<Leave> leaves,
+			List<Staff> owed) {
 		List<DayOff> offs = new ArrayList<>();
 		for (List<LocalDate> week : WeeklyOffConstraint.countedWeeks(Roster.empty(month))) {
 			for (Staff doctor : doctors) {
@@ -51,6 +65,13 @@ public final class WeeklyOffPlanner {
 					}
 				}
 			}
+		}
+		List<LocalDate> days = Roster.empty(month).days();
+		for (Staff doctor : owed) {
+			days.stream()
+					.filter(day -> canTakeOff(doctor, day, doctors, nights, leaves, offs))
+					.findFirst()
+					.ifPresent(day -> offs.add(new DayOff(doctor, day)));
 		}
 		return offs;
 	}
@@ -72,7 +93,7 @@ public final class WeeklyOffPlanner {
 	private boolean canTakeOff(Staff doctor, LocalDate day, List<Staff> doctors, Map<LocalDate, Staff> nights,
 			List<Leave> leaves, List<DayOff> offs) {
 		boolean busy = onLeave(doctor, day, leaves) || doctor.equals(nights.get(day))
-				|| doctor.equals(nights.get(day.minusDays(1)));
+				|| doctor.equals(nights.get(day.minusDays(1))) || offs.contains(new DayOff(doctor, day));
 		return !busy && spare(day, doctors, nights, leaves, offs) > 0;
 	}
 

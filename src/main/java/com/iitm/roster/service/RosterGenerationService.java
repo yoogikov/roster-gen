@@ -22,6 +22,7 @@ import com.iitm.roster.scheduler.GenerationResult;
 import com.iitm.roster.scheduler.HospitalRosterGenerator;
 import com.iitm.roster.scheduler.MonthInput;
 import com.iitm.roster.scheduler.NightRotation;
+import com.iitm.roster.scheduler.OwedOffs;
 import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import java.time.Clock;
 import java.time.YearMonth;
@@ -93,7 +94,7 @@ public class RosterGenerationService {
 		for (Staff doctor : input.doctors()) {
 			staff.save(doctor);
 		}
-		MonthInput withLeave = MonthInputs.withCarriedIn(withApprovedLeave(input), rosters, generator.night());
+		MonthInput withLeave = MonthInputs.withCarriedIn(withApprovedLeave(input), rosters, inputs, generator.night());
 		GenerationResult result = generator.generate(withLeave);
 		inputs.save(MonthInputs.toStored(withLeave));
 		String summary;
@@ -111,6 +112,11 @@ public class RosterGenerationService {
 			}
 		}
 		rosters.save(roster);
+		List<Staff> owed = OwedOffs.after(roster, withLeave.doctors(), withLeave.leaves(), withLeave.owedOffs());
+		if (!owed.isEmpty()) {
+			summary += "; weekly offs owed to next month: "
+					+ owed.stream().map(Staff::name).collect(Collectors.joining(", "));
+		}
 		audit.append(new AuditEvent(clock.instant(), actor.username(), input.month(), summary));
 		return result;
 	}
@@ -130,8 +136,7 @@ public class RosterGenerationService {
 
 	/**
 	 * The HARD rules {@code month}'s stored roster breaks, checked against the input it was
-	 * generated from. A roster can break one even when every slot was filled: the weekly offs are
-	 * planned before the shifts, and a short week may not have room for everyone's.
+	 * generated from. A weekly off that did not fit is not one of these: see {@link #owedOffsAfter}.
 	 *
 	 * @return empty if the month has no roster or no stored input
 	 */
@@ -144,7 +149,17 @@ public class RosterGenerationService {
 			return List.of();
 		}
 		return hardViolations(roster.get(),
-				MonthInputs.withCarriedIn(MonthInputs.fromStored(stored.get()), rosters, generator.night()));
+				MonthInputs.withCarriedIn(MonthInputs.fromStored(stored.get()), rosters, inputs, generator.night()));
+	}
+
+	/**
+	 * The weekly offs doctors are owed once {@code month} is over, which the next month's generation
+	 * will give. A doctor owed two appears twice.
+	 */
+	@Transactional(readOnly = true)
+	public List<Staff> owedOffsAfter(YearMonth month) {
+		Objects.requireNonNull(month, "month");
+		return MonthInputs.owedAfter(month, rosters, inputs);
 	}
 
 	private List<Violation> hardViolations(Roster roster, MonthInput input) {

@@ -21,6 +21,7 @@ import com.iitm.roster.domain.Staff;
 import com.iitm.roster.domain.StaffRole;
 import java.time.LocalDate;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -64,8 +65,12 @@ public final class HospitalRosterGenerator {
 				.orElse(null);
 		Map<LocalDate, Staff> nights = NightRotation.plan(input.month(), input.doctors(), input.firstOnNights(), input.leaves(),
 				nightBefore);
+		Map<LocalDate, Staff> nightsAndTheOneBefore = new HashMap<>(nights);
+		if (nightBefore != null) {
+			nightsAndTheOneBefore.put(input.month().atDay(1).minusDays(1), nightBefore);
+		}
 		List<DayOff> offs = new WeeklyOffPlanner(dayShifts, List.of(morning, afternoon))
-				.plan(input.month(), input.doctors(), nights, input.leaves());
+				.plan(input.month(), input.doctors(), nightsAndTheOneBefore, input.leaves(), input.owedOffs());
 
 		Roster start = Roster.empty(input.month()).withWeeklyOffs(offs);
 		List<ShiftSlot> unplannedNights = new ArrayList<>();
@@ -109,7 +114,7 @@ public final class HospitalRosterGenerator {
 				new NightIncludesMorningWardConstraint(morning, night, Severity.HARD),
 				new PostDutyOffConstraint(night, Severity.HARD, input.carriedIn()),
 				new NoLeaveConflictConstraint(input.leaves(), Severity.HARD),
-				new WeeklyOffConstraint(night, input.leaves(), Severity.HARD),
+				new WeeklyOffConstraint(night, Severity.HARD, input.carriedIn()),
 				new WeeklyShiftBlockConstraint(morning, afternoon, Severity.SOFT));
 	}
 

@@ -112,7 +112,7 @@ public class PageController {
 			model.addAttribute("notice", switch (result) {
 				case GenerationResult.Ok ok -> "generated " + month + ", soft penalty " + ok.softPenalty();
 				case GenerationResult.Infeasible infeasible -> month + " left " + infeasible.unfilled().size() + " slots unfilled";
-			} + continued + brokenText(generation.brokenRules(yearMonth)));
+			} + continued + brokenText(generation.brokenRules(yearMonth)) + owedText(yearMonth));
 		} catch (RuntimeException ex) {
 			model.addAttribute("notice", ex.getMessage());
 		}
@@ -408,6 +408,15 @@ public class PageController {
 		}
 		return "; " + broken.size() + " HARD rule" + (broken.size() == 1 ? "" : "s") + " broken: "
 				+ broken.stream().map(Violation::message).collect(Collectors.joining("; "));
+	}
+
+	private String owedText(YearMonth month) {
+		List<Staff> owed = generation.owedOffsAfter(month);
+		if (owed.isEmpty()) {
+			return "";
+		}
+		return "; weekly offs owed to " + month.plusMonths(1) + ": "
+				+ owed.stream().map(Staff::name).collect(Collectors.joining(", "));
 	}
 
 	private static String approvedText(LeaveResult.Approved approved) {

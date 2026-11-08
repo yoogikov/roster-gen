@@ -10,6 +10,7 @@ import com.iitm.roster.constraints.Violation;
 import com.iitm.roster.domain.HospitalCalendar;
 import com.iitm.roster.domain.Roster;
 import com.iitm.roster.domain.ShiftSlot;
+import com.iitm.roster.domain.Staff;
 import com.iitm.roster.export.CsvDoctorListReader;
 import com.iitm.roster.export.CsvRosterExporter;
 import com.iitm.roster.export.DoctorList;
@@ -18,6 +19,7 @@ import com.iitm.roster.export.InvalidDoctorListException;
 import com.iitm.roster.scheduler.GenerationResult;
 import com.iitm.roster.scheduler.HospitalRosterGenerator;
 import com.iitm.roster.scheduler.MonthInput;
+import com.iitm.roster.scheduler.OwedOffs;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.PrintStream;
@@ -30,6 +32,7 @@ import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
+import java.util.stream.Collectors;
 
 /**
  * Generates a month's roster from a doctor list:
@@ -131,6 +134,10 @@ public final class GenerateRoster {
 			if (constraint.severity() == Severity.HARD) {
 				broken.forEach(v -> err.println("  " + v.date() + " " + v.message()));
 			}
+		}
+		List<Staff> owed = OwedOffs.after(roster, input.doctors(), input.leaves(), input.owedOffs());
+		if (!owed.isEmpty()) {
+			err.println("weekly offs owed to next month: " + owed.stream().map(Staff::name).collect(Collectors.joining(", ")));
 		}
 		return FILLED;
 	}

@@ -116,6 +116,32 @@ class PageControllerTest {
 	}
 
 	@Test
+	void theSheetListsWeeklyOffsOwedFromLastMonthAndToNextMonth() throws Exception {
+		Staff d8 = new Staff("D08", "Test Doctor 8", StaffRole.DOCTOR);
+		Staff d9 = new Staff("D09", "Test Doctor 9", StaffRole.DOCTOR);
+		when(query.find(JULY)).thenReturn(Optional.of(sample()));
+		when(generation.owedOffsInto(JULY)).thenReturn(List.of(d9));
+		when(generation.owedOffsAfter(JULY)).thenReturn(List.of(d8, d8, d9));
+
+		String page = mockMvc.perform(get("/rosters/2026-07").with(httpBasic("staff1", PASSWORD)))
+				.andExpect(status().isOk())
+				.andReturn().getResponse().getContentAsString();
+
+		assertThat(page.replaceAll("\\s+", " "))
+				.containsPattern("id=\"owed-from\">Weekly offs owed from <span>2026-06</span>.*<span>Test Doctor 9</span></p>")
+				.containsPattern("id=\"owed-to\">Weekly offs owed to <span>2026-08</span>: <span>Test Doctor 8 x2, Test Doctor 9</span></p>");
+	}
+
+	@Test
+	void theSheetSaysNothingAboutOwedOffsWhenNoneAre() throws Exception {
+		when(query.find(JULY)).thenReturn(Optional.of(sample()));
+
+		mockMvc.perform(get("/rosters/2026-07").with(httpBasic("staff1", PASSWORD)))
+				.andExpect(status().isOk())
+				.andExpect(content().string(org.hamcrest.Matchers.not(org.hamcrest.Matchers.containsString("owed"))));
+	}
+
+	@Test
 	void adminGetsTheCellEditForm() throws Exception {
 		when(query.find(JULY)).thenReturn(Optional.of(sample()));
 

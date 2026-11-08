@@ -162,6 +162,20 @@ public class RosterGenerationService {
 		return MonthInputs.owedAfter(month, rosters, inputs);
 	}
 
+	/**
+	 * The weekly offs {@code month} owes its doctors from earlier months, which it gives as extras
+	 * where it has room. A doctor owed two appears twice.
+	 *
+	 * @return empty if the month has no stored input
+	 */
+	@Transactional(readOnly = true)
+	public List<Staff> owedOffsInto(YearMonth month) {
+		Objects.requireNonNull(month, "month");
+		return inputs.findByMonth(month)
+				.map(stored -> MonthInputs.withCarriedIn(MonthInputs.fromStored(stored), rosters, inputs, generator.night()).owedOffs())
+				.orElse(List.of());
+	}
+
 	private List<Violation> hardViolations(Roster roster, MonthInput input) {
 		List<Violation> broken = new ArrayList<>();
 		for (Constraint constraint : generator.constraints(input)) {

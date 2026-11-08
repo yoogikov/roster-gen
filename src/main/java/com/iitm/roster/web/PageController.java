@@ -35,6 +35,7 @@ import java.time.YearMonth;
 import java.time.format.DateTimeParseException;
 import java.util.ArrayList;
 import java.util.HashSet;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -132,6 +133,10 @@ public class PageController {
 		model.addAttribute("month", month);
 		model.addAttribute("status", roster.status().name());
 		model.addAttribute("rows", RosterGrid.rows(roster));
+		model.addAttribute("owedFromMonth", yearMonth.minusMonths(1).toString());
+		model.addAttribute("owedFrom", owedNames(generation.owedOffsInto(yearMonth)));
+		model.addAttribute("owedToMonth", yearMonth.plusMonths(1).toString());
+		model.addAttribute("owedTo", owedNames(generation.owedOffsAfter(yearMonth)));
 		model.addAttribute("canEdit", canEdit);
 		model.addAttribute("missing", false);
 		return "roster";
@@ -415,8 +420,16 @@ public class PageController {
 		if (owed.isEmpty()) {
 			return "";
 		}
-		return "; weekly offs owed to " + month.plusMonths(1) + ": "
-				+ owed.stream().map(Staff::name).collect(Collectors.joining(", "));
+		return "; weekly offs owed to " + month.plusMonths(1) + ": " + owedNames(owed);
+	}
+
+	/** Doctors' names in the order given, with a count for anyone owed more than one; blank if none. */
+	private static String owedNames(List<Staff> owed) {
+		Map<String, Long> counts = owed.stream()
+				.collect(Collectors.groupingBy(Staff::name, LinkedHashMap::new, Collectors.counting()));
+		return counts.entrySet().stream()
+				.map(entry -> entry.getValue() == 1 ? entry.getKey() : entry.getKey() + " x" + entry.getValue())
+				.collect(Collectors.joining(", "));
 	}
 
 	private static String approvedText(LeaveResult.Approved approved) {

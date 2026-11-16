@@ -1,8 +1,11 @@
 package com.iitm.roster.repo;
 
 import com.iitm.roster.domain.Roster;
+import com.iitm.roster.domain.RosterStatus;
 import java.time.YearMonth;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
@@ -40,6 +43,14 @@ public class RosterStore {
 	@Transactional(readOnly = true)
 	public Optional<Roster> findByMonth(YearMonth month) {
 		return rosters.findByMonth(month.toString()).map(RosterEntity::toDomain);
+	}
+
+	/** Every stored month with its status, newest first, without loading the shifts. */
+	@Transactional(readOnly = true)
+	public Map<YearMonth, RosterStatus> statuses() {
+		Map<YearMonth, RosterStatus> statuses = new LinkedHashMap<>();
+		rosters.findAllByOrderByMonthDesc().forEach(entity -> statuses.put(entity.month(), entity.status()));
+		return statuses;
 	}
 
 }

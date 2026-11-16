@@ -2,11 +2,13 @@ package com.iitm.roster.service;
 
 import com.iitm.roster.domain.AuditEvent;
 import com.iitm.roster.domain.Roster;
+import com.iitm.roster.domain.RosterStatus;
 import com.iitm.roster.repo.AuditStore;
 import com.iitm.roster.repo.RosterStore;
 import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import java.time.YearMonth;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -28,6 +30,11 @@ public class RosterQuery {
 
 	public Optional<Roster> find(YearMonth month) {
 		return rosters.findByMonth(month);
+	}
+
+	/** Every month that has a roster, with its status, newest first. */
+	public Map<YearMonth, RosterStatus> months() {
+		return rosters.statuses();
 	}
 
 	/** Every audit event, oldest first. */

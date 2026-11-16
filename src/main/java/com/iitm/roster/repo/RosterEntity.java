@@ -63,6 +63,14 @@ class RosterEntity {
 		this.weeklyOffs.addAll(newWeeklyOffs);
 	}
 
+	YearMonth month() {
+		return YearMonth.parse(month);
+	}
+
+	RosterStatus status() {
+		return status;
+	}
+
 	Roster toDomain() {
 		return new Roster(YearMonth.parse(month), status,
 				assignments.stream().map(AssignmentEmbeddable::toDomain).toList(),

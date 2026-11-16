@@ -1,0 +1,22 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+	<meta charset="utf-8"/>
+	<title>Rosters</title>
+	<style>body { font-family: sans-serif; margin: 1.5rem; } nav a { margin-right: 1rem; } td, th { border: 1px solid #ccc; padding: 0.3rem; }</style>
+</head>
+<body>
+<nav th:replace="~{nav :: nav}"></nav>
+<h1>Rosters</h1>
+<table th:unless="${#maps.isEmpty(months)}">
+	<thead><tr><th>Month</th><th>Status</th></tr></thead>
+	<tbody>
+	<tr th:each="entry : ${months}">
+		<td><a th:href="@{/rosters/{month}(month=${entry.key})}" th:text="${entry.key}">2026-07</a></td>
+		<td th:text="${entry.value}">DRAFT</td>
+	</tr>
+	</tbody>
+</table>
+<p th:if="${#maps.isEmpty(months)}">No rosters yet.</p>
+</body>
+</html>

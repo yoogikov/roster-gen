@@ -137,6 +137,12 @@ public class PageController {
 		return "home";
 	}
 
+	@GetMapping("/rosters")
+	String rosters(Model model) {
+		model.addAttribute("months", query.months());
+		return "rosters";
+	}
+
 	@GetMapping("/rosters/{month}")
 	String roster(@PathVariable String month, Model model) {
 		YearMonth yearMonth;
